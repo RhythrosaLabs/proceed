@@ -1,190 +1,85 @@
 import streamlit as st
-import random
-import string
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+import plotly.express as px
 import plotly.graph_objects as go
-import networkx as nx
+from datetime import datetime, timedelta
+import random
 
-# Simple tokenization function
-def simple_tokenize(text):
-    return text.lower().split()
+# Function to generate sample data
+def generate_sample_data(days=30):
+    categories = ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation']
+    data = []
+    start_date = datetime.now() - timedelta(days=days)
+    for i in range(days):
+        date = start_date + timedelta(days=i)
+        for _ in range(random.randint(1, 5)):  # 1 to 5 transactions per day
+            category = random.choice(categories)
+            amount = round(random.uniform(10, 200), 2)
+            data.append({'Date': date, 'Category': category, 'Amount': amount})
+    return pd.DataFrame(data)
 
-# Advanced text generation using N-grams
-class NGramModel:
-    def __init__(self, n):
-        self.n = n
-        self.model = {}
-
-    def train(self, text):
-        words = simple_tokenize(text)
-        for i in range(len(words) - self.n):
-            gram = tuple(words[i:i+self.n])
-            next_word = words[i+self.n]
-            if gram not in self.model:
-                self.model[gram] = {}
-            if next_word not in self.model[gram]:
-                self.model[gram][next_word] = 0
-            self.model[gram][next_word] += 1
-
-    def generate(self, length):
-        current = random.choice(list(self.model.keys()))
-        result = list(current)
-        for _ in range(length - self.n):
-            if current in self.model:
-                next_word = random.choices(list(self.model[current].keys()),
-                                           weights=list(self.model[current].values()))[0]
-                result.append(next_word)
-                current = tuple(result[-self.n:])
-            else:
-                break
-        return ' '.join(result)
-
-# Generate complex time series data
-def generate_complex_time_series(days=365):
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
-    dates = pd.date_range(start=start_date, end=end_date, freq='D')
-    
-    trend = np.linspace(0, 100, len(dates))
-    seasonal = 20 * np.sin(2 * np.pi * np.arange(len(dates)) / 365)
-    cyclical = 15 * np.sin(2 * np.pi * np.arange(len(dates)) / 30)
-    random_walk = np.cumsum(np.random.randn(len(dates))) * 5
-    
-    values = trend + seasonal + cyclical + random_walk
-    
-    return pd.Series(values, index=dates)
-
+# Main function to run the Streamlit app
 def main():
-    st.title("Simplified Procedurally Generated Streamlit App")
+    st.title("Personal Finance Dashboard and Budgeting Tool")
 
-    # Sidebar for global controls
-    st.sidebar.header("Global Controls")
-    seed = st.sidebar.number_input("Random Seed", min_value=0, max_value=1000000, value=42)
-    random.seed(seed)
-    np.random.seed(seed)
+    # Sidebar for user input
+    st.sidebar.header("Settings")
+    days = st.sidebar.slider("Number of days to analyze", 7, 90, 30)
+    
+    # Generate or load data
+    if 'finance_data' not in st.session_state:
+        st.session_state.finance_data = generate_sample_data(days)
+    df = st.session_state.finance_data
 
-    # Advanced text generation
-    st.header("Advanced Text Generation")
-    ngram_model = NGramModel(3)
-    ngram_model.train("This is a more advanced sample text to train our N-gram model for generating even more realistic random text that sounds coherent natural and contextually appropriate")
-    text_length = st.slider("Choose text length", 20, 200, 100)
-    generated_text = ngram_model.generate(text_length)
-    st.write(generated_text)
+    # Overview
+    st.header("Financial Overview")
+    total_spent = df['Amount'].sum()
+    avg_daily_spend = total_spent / days
+    st.metric("Total Spent", f"${total_spent:.2f}")
+    st.metric("Average Daily Spend", f"${avg_daily_spend:.2f}")
 
-    # Word frequency
-    words = simple_tokenize(generated_text)
-    word_freq = pd.Series(words).value_counts()
-    fig, ax = plt.subplots()
-    word_freq[:20].plot(kind='bar')
-    plt.title("Top 20 Words")
-    plt.xticks(rotation=45, ha='right')
-    st.pyplot(fig)
-
-    # Complex data generation and visualization
-    st.header("Complex Data Generation and Visualization")
-    n_series = st.slider("Number of data series", 1, 5, 3)
-    data = {f"Series {i+1}": generate_complex_time_series() for i in range(n_series)}
-    df = pd.DataFrame(data)
-
-    # Interactive 3D visualization
-    st.subheader("Interactive 3D Visualization")
-    fig = go.Figure(data=[go.Surface(z=df.values.T)])
-    fig.update_layout(title='3D Surface Plot of Time Series', autosize=False,
-                      width=800, height=600,
-                      margin=dict(l=65, r=50, b=65, t=90))
+    # Spending by Category
+    st.header("Spending by Category")
+    category_spending = df.groupby('Category')['Amount'].sum().sort_values(ascending=False)
+    fig = px.pie(values=category_spending.values, names=category_spending.index, title="Spending Distribution")
     st.plotly_chart(fig)
 
-    # Machine Learning: K-means clustering
-    st.subheader("K-means Clustering")
-    n_clusters = st.slider("Number of clusters", 2, 10, 5)
-    scaler = StandardScaler()
-    scaled_data = scaler.fit_transform(df)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=seed)
-    df['Cluster'] = kmeans.fit_predict(scaled_data)
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for i in range(n_clusters):
-        cluster_data = df[df['Cluster'] == i]
-        ax.scatter(cluster_data.index, cluster_data.iloc[:, 0], label=f'Cluster {i}')
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Value")
-    ax.legend()
-    plt.title("K-means Clustering of Time Series Data")
-    st.pyplot(fig)
-
-    # Network Graph
-    st.header("Procedural Network Graph")
-    n_nodes = st.slider("Number of nodes", 10, 50, 20)
-    n_edges = st.slider("Number of edges", n_nodes-1, n_nodes*(n_nodes-1)//2, n_nodes)
-
-    G = nx.gnm_random_graph(n_nodes, n_edges, seed=seed)
-    pos = nx.spring_layout(G)
-
-    edge_x = []
-    edge_y = []
-    for edge in G.edges():
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
-        hoverinfo='none',
-        mode='lines')
-
-    node_x = [pos[node][0] for node in G.nodes()]
-    node_y = [pos[node][1] for node in G.nodes()]
-
-    node_trace = go.Scatter(
-        x=node_x, y=node_y,
-        mode='markers',
-        hoverinfo='text',
-        marker=dict(
-            showscale=True,
-            colorscale='YlGnBu',
-            reversescale=True,
-            color=[],
-            size=10,
-            colorbar=dict(
-                thickness=15,
-                title='Node Connections',
-                xanchor='left',
-                titleside='right'
-            ),
-            line_width=2))
-
-    node_adjacencies = []
-    node_text = []
-    for node, adjacencies in enumerate(G.adjacency()):
-        node_adjacencies.append(len(adjacencies[1]))
-        node_text.append(f'# of connections: {len(adjacencies[1])}')
-
-    node_trace.marker.color = node_adjacencies
-    node_trace.text = node_text
-
-    fig = go.Figure(data=[edge_trace, node_trace],
-                    layout=go.Layout(
-                        title='Interactive Network Graph',
-                        titlefont_size=16,
-                        showlegend=False,
-                        hovermode='closest',
-                        margin=dict(b=20,l=5,r=5,t=40),
-                        annotations=[ dict(
-                            text="",
-                            showarrow=False,
-                            xref="paper", yref="paper",
-                            x=0.005, y=-0.002 ) ],
-                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-                    )
+    # Spending Over Time
+    st.header("Spending Over Time")
+    daily_spending = df.groupby('Date')['Amount'].sum().reset_index()
+    fig = px.line(daily_spending, x='Date', y='Amount', title="Daily Spending Trend")
     st.plotly_chart(fig)
+
+    # Transaction History
+    st.header("Recent Transactions")
+    st.dataframe(df.sort_values('Date', ascending=False).head(10))
+
+    # Budget Planning
+    st.header("Budget Planning")
+    categories = df['Category'].unique()
+    budget_data = {}
+    for category in categories:
+        budget_data[category] = st.number_input(f"Budget for {category}", min_value=0.0, value=500.0, step=50.0)
+
+    if st.button("Analyze Budget"):
+        budget_comparison = []
+        for category, budget in budget_data.items():
+            spent = df[df['Category'] == category]['Amount'].sum()
+            budget_comparison.append({
+                'Category': category,
+                'Budget': budget,
+                'Spent': spent,
+                'Remaining': budget - spent
+            })
+        budget_df = pd.DataFrame(budget_comparison)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=budget_df['Category'], y=budget_df['Budget'], name='Budget'))
+        fig.add_trace(go.Bar(x=budget_df['Category'], y=budget_df['Spent'], name='Spent'))
+        fig.update_layout(title="Budget vs. Actual Spending", barmode='group')
+        st.plotly_chart(fig)
+
+        st.dataframe(budget_df)
 
 if __name__ == "__main__":
     main()
