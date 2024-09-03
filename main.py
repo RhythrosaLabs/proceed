@@ -7,23 +7,12 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from scipy.stats import norm
 import plotly.graph_objects as go
-import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.sentiment import SentimentIntensityAnalyzer
 import networkx as nx
-import math
 
-# Download necessary NLTK data
-@st.cache_resource
-def download_nltk_data():
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
-    nltk.download('vader_lexicon', quiet=True)
-
-download_nltk_data()
+# Simple tokenization function
+def simple_tokenize(text):
+    return text.lower().split()
 
 # Advanced text generation using N-grams
 class NGramModel:
@@ -32,7 +21,7 @@ class NGramModel:
         self.model = {}
 
     def train(self, text):
-        words = word_tokenize(text.lower())
+        words = simple_tokenize(text)
         for i in range(len(words) - self.n):
             gram = tuple(words[i:i+self.n])
             next_word = words[i+self.n]
@@ -61,82 +50,17 @@ def generate_complex_time_series(days=365):
     start_date = end_date - timedelta(days=days)
     dates = pd.date_range(start=start_date, end=end_date, freq='D')
     
-    # Trend component
     trend = np.linspace(0, 100, len(dates))
-    
-    # Seasonal component (yearly cycle)
     seasonal = 20 * np.sin(2 * np.pi * np.arange(len(dates)) / 365)
-    
-    # Cyclical component (every 30 days)
     cyclical = 15 * np.sin(2 * np.pi * np.arange(len(dates)) / 30)
-    
-    # Random walk component
     random_walk = np.cumsum(np.random.randn(len(dates))) * 5
     
-    # Combine components
     values = trend + seasonal + cyclical + random_walk
     
     return pd.Series(values, index=dates)
 
-# Generate a color palette based on color theory
-def generate_color_palette(base_color, n_colors):
-    hue, saturation, value = rgb_to_hsv(*hex_to_rgb(base_color))
-    palette = []
-    for i in range(n_colors):
-        new_hue = (hue + i * (360 / n_colors)) % 360
-        palette.append(rgb_to_hex(*hsv_to_rgb(new_hue, saturation, value)))
-    return palette
-
-def rgb_to_hsv(r, g, b):
-    r, g, b = r/255.0, g/255.0, b/255.0
-    mx = max(r, g, b)
-    mn = min(r, g, b)
-    diff = mx-mn
-    if mx == mn:
-        h = 0
-    elif mx == r:
-        h = (60 * ((g-b)/diff) + 360) % 360
-    elif mx == g:
-        h = (60 * ((b-r)/diff) + 120) % 360
-    else:
-        h = (60 * ((r-g)/diff) + 240) % 360
-    if mx == 0:
-        s = 0
-    else:
-        s = (diff/mx) * 100
-    v = mx * 100
-    return h, s, v
-
-def hsv_to_rgb(h, s, v):
-    h = float(h)
-    s = float(s)
-    v = float(v)
-    h60 = h / 60.0
-    h60f = math.floor(h60)
-    hi = int(h60f) % 6
-    f = h60 - h60f
-    p = v * (1 - s)
-    q = v * (1 - f * s)
-    t = v * (1 - (1 - f) * s)
-    r, g, b = 0, 0, 0
-    if hi == 0: r, g, b = v, t, p
-    elif hi == 1: r, g, b = q, v, p
-    elif hi == 2: r, g, b = p, v, t
-    elif hi == 3: r, g, b = p, q, v
-    elif hi == 4: r, g, b = t, p, v
-    elif hi == 5: r, g, b = v, p, q
-    r, g, b = int(r * 255), int(g * 255), int(b * 255)
-    return r, g, b
-
-def hex_to_rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-
-def rgb_to_hex(r, g, b):
-    return '#{:02x}{:02x}{:02x}'.format(r, g, b)
-
 def main():
-    st.title("Highly Advanced Procedurally Generated Streamlit App")
+    st.title("Simplified Procedurally Generated Streamlit App")
 
     # Sidebar for global controls
     st.sidebar.header("Global Controls")
@@ -145,24 +69,16 @@ def main():
     np.random.seed(seed)
 
     # Advanced text generation
-    st.header("Advanced Text Generation and Analysis")
+    st.header("Advanced Text Generation")
     ngram_model = NGramModel(3)
     ngram_model.train("This is a more advanced sample text to train our N-gram model for generating even more realistic random text that sounds coherent natural and contextually appropriate")
     text_length = st.slider("Choose text length", 20, 200, 100)
     generated_text = ngram_model.generate(text_length)
     st.write(generated_text)
 
-    # Sentiment analysis
-    sia = SentimentIntensityAnalyzer()
-    sentiment_scores = sia.polarity_scores(generated_text)
-    st.write("Sentiment Analysis:")
-    st.write(sentiment_scores)
-
-    # Word cloud
-    words = word_tokenize(generated_text.lower())
-    stop_words = set(stopwords.words('english'))
-    filtered_words = [word for word in words if word.isalnum() and word not in stop_words]
-    word_freq = pd.Series(filtered_words).value_counts()
+    # Word frequency
+    words = simple_tokenize(generated_text)
+    word_freq = pd.Series(words).value_counts()
     fig, ax = plt.subplots()
     word_freq[:20].plot(kind='bar')
     plt.title("Top 20 Words")
@@ -269,42 +185,6 @@ def main():
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                     )
     st.plotly_chart(fig)
-
-    # Procedural art generation
-    st.header("Advanced Procedural Art")
-    art_type = st.radio("Choose art type", ["Fractal", "Particle System"])
-    
-    if art_type == "Fractal":
-        # Mandelbrot set
-        def mandelbrot(h, w, max_iter):
-            y, x = np.ogrid[-1.4:1.4:h*1j, -2:0.8:w*1j]
-            c = x + y*1j
-            z = c
-            divtime = max_iter + np.zeros(z.shape, dtype=int)
-            for i in range(max_iter):
-                z = z**2 + c
-                diverge = z*np.conj(z) > 2**2
-                div_now = diverge & (divtime == max_iter)
-                divtime[div_now] = i
-                z[diverge] = 2
-            return divtime
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        ax.imshow(mandelbrot(1000, 1000, 100), cmap='hot', extent=[-2, 0.8, -1.4, 1.4])
-        ax.set_title("Mandelbrot Set")
-        st.pyplot(fig)
-    else:
-        # Particle system
-        n_particles = 1000
-        positions = np.random.rand(n_particles, 2)
-        velocities = np.random.randn(n_particles, 2) * 0.01
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        scatter = ax.scatter(positions[:, 0], positions[:, 1], c=np.random.rand(n_particles), cmap='viridis', alpha=0.5)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.set_title("Particle System")
-        st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
