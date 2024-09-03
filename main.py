@@ -14,11 +14,16 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 import networkx as nx
+import math
 
 # Download necessary NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('vader_lexicon')
+@st.cache_resource
+def download_nltk_data():
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('vader_lexicon', quiet=True)
+
+download_nltk_data()
 
 # Advanced text generation using N-grams
 class NGramModel:
@@ -299,15 +304,6 @@ def main():
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set_title("Particle System")
-        
-        def update(frame):
-            global positions, velocities
-            positions += velocities
-            positions = np.mod(positions, 1)  # Wrap around
-            scatter.set_offsets(positions)
-            return scatter,
-        
-        anim = animation.FuncAnimation(fig, update, frames=200, interval=50, blit=True)
         st.pyplot(fig)
 
 if __name__ == "__main__":
