@@ -56,7 +56,11 @@ def predict_expenses(df):
     
     next_week = pd.date_range(start=X['Date'].max() + timedelta(days=1), periods=7)
     future_X = pd.DataFrame({'Date': next_week, 'DayOfWeek': next_week.dayofweek, 'DayOfMonth': next_week.day})
-    future_X_scaled = scaler.transform(future_X[['DayOfWeek', 'DayOfMonth']])
+    
+    # Create a DataFrame with the same columns as the original, filling Amount with 0
+    future_X_full = pd.DataFrame({'Amount': [0]*len(future_X), 'DayOfWeek': future_X['DayOfWeek'], 'DayOfMonth': future_X['DayOfMonth']})
+    future_X_scaled = scaler.transform(future_X_full)
+    
     future_X['Cluster'] = kmeans.predict(future_X_scaled)
     
     cluster_avg_spending = X.groupby('Cluster')['Amount'].mean()
@@ -112,16 +116,25 @@ def main():
     fig = px.pie(values=category_spending.values, names=category_spending.index, title="Spending Distribution")
     st.plotly_chart(fig)
 
-    # Spending Over Time with Predictions
-    st.header("Spending Trend and Predictions")
-    daily_spending = df.groupby('Date')['Amount'].sum().reset_index()
-    predictions = predict_expenses(df)
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=daily_spending['Date'], y=daily_spending['Amount'], mode='lines', name='Actual Spending'))
-    fig.add_trace(go.Scatter(x=predictions['Date'], y=predictions['PredictedAmount'], mode='lines', name='Predicted Spending', line=dict(dash='dot')))
-    fig.update_layout(title="Daily Spending Trend with Future Predictions", xaxis_title="Date", yaxis_title="Amount")
-    st.plotly_chart(fig)
+    try:
+        # Spending Over Time with Predictions
+        st.header("Spending Trend and Predictions")
+        daily_spending = df.groupby('Date')['Amount'].sum().reset_index()
+        
+        if len(daily_spending) > 7:  # Only predict if we have enough data
+            predictions = predict_expenses(df)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=daily_spending['Date'], y=daily_spending['Amount'], mode='lines', name='Actual Spending'))
+            fig.add_trace(go.Scatter(x=predictions['Date'], y=predictions['PredictedAmount'], mode='lines', name='Predicted Spending', line=dict(dash='dot')))
+            fig.update_layout(title="Daily Spending Trend with Future Predictions", xaxis_title="Date", yaxis_title="Amount")
+            st.plotly_chart(fig)
+        else:
+            st.warning("Not enough data to make predictions. Please provide at least 7 days of spending data.")
+            st.line_chart(daily_spending.set_index('Date'))
+    except Exception as e:
+        st.error(f"An error occurred while generating predictions: {str(e)}")
+        st.line_chart(daily_spending.set_index('Date'))  # Fallback to simple line chart
 
     # Budget Planning and Analysis
     st.header("Budget Analysis")
@@ -168,11 +181,14 @@ def main():
         st.success(f"Great! Your savings goal for next month is ${savings_goal:.2f}. Let's see if you can beat it!")
 
     if hasattr(st.session_state, 'savings_goal'):
-        projected_savings = sum(budget.values()) - predictions['PredictedAmount'].sum()
-        if projected_savings >= st.session_state.savings_goal:
-            st.success(f"You're on track to meet your savings goal! Projected savings: ${projected_savings:.2f}")
-        else:
-            st.warning(f"You might miss your savings goal. Projected savings: ${projected_savings:.2f}. Try to cut back on some expenses!")
+        try:
+            projected_savings = sum(budget.values()) - predictions['PredictedAmount'].sum()
+            if projected_savings >= st.session_state.savings_goal:
+                st.success(f"You're on track to meet your savings goal! Projected savings: ${projected_savings:.2f}")
+            else:
+                st.warning(f"You might miss your savings goal. Projected savings: ${projected_savings:.2f}. Try to cut back on some expenses!")
+        except NameError:
+            st.warning("Unable to calculate projected savings due to insufficient data. Keep tracking your expenses!")
 
 if __name__ == "__main__":
     main()
