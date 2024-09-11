@@ -1,9 +1,7 @@
 import streamlit as st
 import io
 import contextlib
-
-# OpenAI API Key (set your key here or use environment variables)
-OPENAI_API_KEY = "your_openai_api_key_here"
+import openai
 
 # Function to execute user-provided code
 def execute_code(code):
@@ -20,10 +18,10 @@ def execute_code(code):
     return output_buffer.getvalue(), error_message
 
 # Function to call GPT-4o-mini (or any OpenAI GPT model)
-def chat_with_gpt(prompt):
+def chat_with_gpt(prompt, api_key):
     """Send a prompt to GPT-4o-mini and return the response."""
     try:
-        openai.api_key = OPENAI_API_KEY
+        openai.api_key = api_key
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}]
@@ -39,7 +37,7 @@ def main():
 
     # Tab layout for Code Execution and GPT-4o-mini Chat
     tabs = st.tabs(["Code Executor", "GPT-4o-mini Chat"])
-    
+
     with tabs[0]:
         st.subheader("Write and Execute Python Code:")
         default_code = """# Write your Python code here\nprint('Hello, World!')"""
@@ -56,15 +54,22 @@ def main():
 
     with tabs[1]:
         st.subheader("Chat with GPT-4o-mini:")
-        prompt = st.text_area("Enter your prompt for GPT-4o-mini:", height=150)
+
+        # API Key Input
+        api_key = st.text_input("Enter your OpenAI API Key", type="password")
         
+        # Prompt Input
+        prompt = st.text_area("Enter your prompt for GPT-4o-mini:", height=150)
+
         if st.button("Chat with GPT-4o-mini"):
-            if prompt:
-                response = chat_with_gpt(prompt)
+            if not api_key:
+                st.warning("Please enter a valid OpenAI API key.")
+            elif not prompt:
+                st.warning("Please enter a prompt.")
+            else:
+                response = chat_with_gpt(prompt, api_key)
                 st.subheader("Response:")
                 st.write(response)
-            else:
-                st.warning("Please enter a prompt.")
 
 # Entry point
 if __name__ == "__main__":
