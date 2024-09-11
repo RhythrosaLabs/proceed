@@ -1,7 +1,6 @@
 import streamlit as st
 import io
 import contextlib
-import openai
 
 # OpenAI API Key (set your key here or use environment variables)
 OPENAI_API_KEY = "your_openai_api_key_here"
