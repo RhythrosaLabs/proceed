@@ -28,6 +28,7 @@ import plotly.graph_objs as go
 import uuid
 
 # Custom CSS (unchanged)
+# Custom CSS with added styles for bottom bar and chat input
 st.markdown("""
 <style>
     .stApp {
@@ -53,7 +54,10 @@ st.markdown("""
         border-radius: 10px;
     }
     .chat-message {
-        padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
     }
     .chat-message.user {
         background-color: rgba(255, 255, 255, 0.1);
@@ -73,11 +77,6 @@ st.markdown("""
     .chat-message .message {
         width: 80%;
         padding: 0 1.5rem;
-    }
-    .floating-button {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
     }
     .code-block {
         background-color: rgba(0, 0, 0, 0.2);
@@ -114,6 +113,50 @@ st.markdown("""
         margin-top: 20px;
         margin-bottom: 20px;
     }
+
+    /* New styles for the bottom action bar */
+    .bottom-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: rgba(49, 51, 63, 0.9);
+        padding: 10px;
+        z-index: 999;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+    }
+
+    .bottom-bar .stButton > button {
+        height: 2.5rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    /* Adjust main content to not be hidden behind bottom bar */
+    .main .block-container {
+        padding-bottom: 5rem;
+    }
+
+    /* Custom styles for the chat input */
+    .stChatInputContainer {
+        position: fixed;
+        bottom: 4rem;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        background-color: rgba(49, 51, 63, 0.9);
+        z-index: 998;
+    }
+
+    .stChatInputContainer > div {
+        margin-bottom: 0 !important;
+    }
+
+    /* Hide default Streamlit watermark */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -249,7 +292,6 @@ def fix_code(code, error_message, api_key):
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
 
-# Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
     
@@ -275,9 +317,7 @@ def main():
         st.markdown("1. Chat naturally about coding tasks")
         st.markdown("2. Request code samples for various visualizations")
         st.markdown("3. Experiment with image and data processing")
-        st.markdown("4. Click 'Run Code' to execute and see results")
-        st.markdown("5. If there's an error, use 'Fix and Rerun'")
-        st.markdown("6. Use 'Clear Chat' to start over")
+        st.markdown("4. Use the buttons at the bottom to manage your code and chat")
         
         st.markdown("---")
         st.markdown("### Available Libraries:")
@@ -337,73 +377,7 @@ st.write("Data saved as 'scatter_data.csv'")
                 st.session_state.last_code = example_code
                 st.experimental_rerun()
 
-        # Action buttons
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("🏃‍♂️ Run Code", key="run_code"):
-                if st.session_state.last_code:
-                    with st.spinner("Executing code..."):
-                        success, message = execute_code(st.session_state.last_code)
-                        if success:
-                            st.success(message)
-                            st.session_state.last_error = None
-                        else:
-                            st.session_state.last_error = message
-                else:
-                    st.warning("No code to execute. Please request a code sample first.")
-
-        with col2:
-            if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
-                if st.session_state.last_error and st.session_state.last_code:
-                    with st.spinner("Fixing code..."):
-                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                        st.session_state.last_code = fixed_code
-                        success, message = execute_code(fixed_code)
-                        if success:
-                            st.success("Code fixed and executed successfully.")
-                            st.session_state.last_error = None
-                        else:
-                            st.error(f"Error after fixing: {message}")
-                            st.session_state.last_error = message
-                else:
-                    st.warning("No error to fix or no previous code execution. Please run some code first.")
-
-        with col3:
-            if st.button("🧹 Clear Code", key="clear_code"):
-                st.session_state.last_code = None
-                st.session_state.last_error = None
-                st.experimental_rerun()
-
         st.markdown('</div>', unsafe_allow_html=True)
-
-    # Chat input
-    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
-
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
-
-        # Process with GPT-4
-        if api_key:
-            with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
-                
-                # Update last_code if the response contains a code block
-                if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-                    st.experimental_rerun()
-        else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-    # Clear entire chat button
-    if st.button("🧹 Clear Entire Chat", key="clear_chat"):
-        st.session_state.messages = []
-        st.session_state.last_error = None
-        st.session_state.last_code = None
-        st.experimental_rerun()
 
     # Display generated files
     st.markdown("### Generated Files")
@@ -431,6 +405,78 @@ st.write("Data saved as 'scatter_data.csv'")
                     )
     else:
         st.info("No generated files yet.")
+
+    # Chat input (remains at the bottom)
+    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+
+    # Bottom action bar
+    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        if st.button("🏃‍♂️ Run Code", key="run_code"):
+            if st.session_state.last_code:
+                with st.spinner("Executing code..."):
+                    success, message = execute_code(st.session_state.last_code)
+                    if success:
+                        st.success(message)
+                        st.session_state.last_error = None
+                    else:
+                        st.session_state.last_error = message
+            else:
+                st.warning("No code to execute. Please request a code sample first.")
+
+    with col2:
+        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+            if st.session_state.last_error and st.session_state.last_code:
+                with st.spinner("Fixing code..."):
+                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                    st.session_state.last_code = fixed_code
+                    success, message = execute_code(fixed_code)
+                    if success:
+                        st.success("Code fixed and executed successfully.")
+                        st.session_state.last_error = None
+                    else:
+                        st.error(f"Error after fixing: {message}")
+                        st.session_state.last_error = message
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    with col3:
+        if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.last_code = None
+            st.session_state.last_error = None
+            st.experimental_rerun()
+
+    with col4:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+            st.experimental_rerun()
+
+    with col5:
+        if st.button("🔄 Reset All", key="reset_all"):
+            st.session_state.messages = []
+            st.session_state.last_error = None
+            st.session_state.last_code = None
+            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+            st.experimental_rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if prompt:
+        # Process with GPT-4
+        if api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, api_key, st.session_state.messages)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                display_chat_message("assistant", response)
+                
+                # Update last_code if the response contains a code block
+                if "```python" in response:
+                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                    st.experimental_rerun()
+        else:
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
 # Entry point
 if __name__ == "__main__":
