@@ -23,8 +23,11 @@ import pygame
 import soundfile as sf
 import sox
 import os
+import contextlib
+import plotly.graph_objs as go
+import uuid
 
-# Custom CSS
+# Custom CSS (unchanged)
 st.markdown("""
 <style>
     .stApp {
@@ -114,15 +117,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Function to load Lottie animation
+# Function to load Lottie animation (unchanged)
 def load_lottieurl(url: str):
     r = requests.get(url)
     if r.status_code != 200:
         return None
     return r.json()
 
+# Updated execute_code function
 def execute_code(code):
-    # Create a dictionary of local variables that includes all imported libraries
     local_vars = {
         'st': st,
         'px': px,
@@ -150,58 +153,58 @@ def execute_code(code):
         'list_files': list_files
     }
     
-    # Create a StringIO object to capture print outputs
     output = io.StringIO()
     
     try:
-        # First, try to compile the code to catch syntax errors
         compile(code, '<string>', 'exec')
         
-        # If compilation succeeds, execute the code
         with contextlib.redirect_stdout(output):
             exec(code, globals(), local_vars)
         
-        # Display any print outputs
         if output.getvalue():
             st.text("Print output:")
             st.code(output.getvalue(), language="")
         
-        # Check if there's a matplotlib figure to display
         if 'plt' in local_vars and plt.get_fignums():
-            st.pyplot(plt)
+            fig = plt.gcf()
+            st.pyplot(fig)
+            save_plot(fig, "matplotlib_plot.png")
             plt.close()
         
-        # Check if there's a Plotly figure to display
         if 'fig' in local_vars and isinstance(local_vars['fig'], go.Figure):
             st.plotly_chart(local_vars['fig'])
+            save_plotly(local_vars['fig'], "plotly_plot.html")
         
-        # Check if there's a pygame surface to display
         if 'pygame' in local_vars and pygame.get_init():
             surface = pygame.display.get_surface()
             if surface:
-                pygame_surface_to_image(surface)
+                img = pygame_surface_to_image(surface)
+                st.image(img, caption="Pygame Output", use_column_width=True)
+                save_image(img, "pygame_output.png")
         
-        # Check for audio output
         if 'audio' in local_vars and isinstance(local_vars['audio'], np.ndarray):
             st.audio(local_vars['audio'], sample_rate=local_vars.get('sample_rate', 44100))
+            save_audio(local_vars['audio'], local_vars.get('sample_rate', 44100), "audio_output.wav")
+        
+        # Check for PIL Image
+        if 'image' in local_vars and isinstance(local_vars['image'], Image.Image):
+            st.image(local_vars['image'], caption="Generated Image", use_column_width=True)
+            save_image(local_vars['image'], "generated_image.png")
         
         return True, "Code executed successfully."
-    
     except SyntaxError as e:
         error_msg = f"Syntax Error: {str(e)}"
         st.error(error_msg)
         return False, error_msg
-    
     except Exception as e:
         error_msg = f"Error: {str(e)}"
         st.error(error_msg)
         return False, error_msg
 
-# Function to convert Pygame surface to Streamlit image
+# Function to convert Pygame surface to PIL Image
 def pygame_surface_to_image(surface):
     buffer = surface.get_view("RGB")
-    img = Image.frombytes("RGB", surface.get_size(), buffer.raw)
-    st.image(img, caption="Pygame Output", use_column_width=True)
+    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
 
 # Functions for file system management
 def save_file(filename, content):
@@ -215,7 +218,20 @@ def load_file(filename):
 def list_files():
     return os.listdir("generated_files")
 
-# Function to call GPT-4 via requests
+# New functions to save various outputs
+def save_plot(fig, filename):
+    fig.savefig(f"generated_files/{filename}")
+
+def save_plotly(fig, filename):
+    fig.write_html(f"generated_files/{filename}")
+
+def save_image(img, filename):
+    img.save(f"generated_files/{filename}")
+
+def save_audio(audio, sample_rate, filename):
+    sf.write(f"generated_files/{filename}", audio, sample_rate)
+
+# Function to call GPT-4 via requests (unchanged)
 def chat_with_gpt(prompt, api_key, conversation_history):
     api_url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -236,7 +252,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Function to display chat messages
+# Function to display chat messages (unchanged)
 def display_chat_message(role, content):
     with st.chat_message(role):
         if role == "user":
@@ -251,7 +267,7 @@ def display_chat_message(role, content):
             else:
                 st.markdown(content)
 
-# Function to fix code
+# Function to fix code (unchanged)
 def fix_code(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
@@ -313,29 +329,31 @@ def main():
             st.info("No code to display. Request a code sample or write some code to get started!")
             st.markdown("Here's an example to try:")
             example_code = """
-# Example: Create an interactive scatter plot with Plotly
-import plotly.express as px
-import numpy as np
+# Example: Create a smiley face image
+from PIL import Image, ImageDraw
 
-# Generate some random data
-np.random.seed(42)
-data = pd.DataFrame({
-    'x': np.random.randn(100),
-    'y': np.random.randn(100),
-    'size': np.random.randint(1, 20, 100)
-})
+# Create a new image with a white background
+image = Image.new('RGB', (200, 200), color='white')
 
-# Create a scatter plot
-fig = px.scatter(data, x='x', y='y', size='size', color='size',
-                 title='Interactive Scatter Plot')
-fig.update_layout(template='plotly_dark')
+# Create a drawing object
+draw = ImageDraw.Draw(image)
 
-# Display the plot
-st.plotly_chart(fig)
+# Draw the face
+draw.ellipse([20, 20, 180, 180], outline='black', width=2)
 
-# Save the data
-data.to_csv('generated_files/scatter_data.csv', index=False)
-st.write("Data saved to 'scatter_data.csv'")
+# Draw the eyes
+draw.ellipse([55, 65, 85, 95], fill='black')
+draw.ellipse([115, 65, 145, 95], fill='black')
+
+# Draw the smile
+draw.arc([50, 85, 150, 155], start=0, end=180, fill='black', width=2)
+
+# Display the image
+st.image(image, caption='Smiley Face', use_column_width=True)
+
+# Save the image
+image.save('generated_files/smiley_face.png')
+st.write("Image saved as 'smiley_face.png'")
 """
             st.code(example_code, language="python")
             if st.button("Try This Example"):
@@ -352,14 +370,12 @@ st.write("Data saved to 'scatter_data.csv'")
         if st.button("🏃‍♂️ Run Code", key="run_code"):
             if st.session_state.last_code:
                 with st.spinner("Executing code..."):
-                    try:
-                        result = execute_code(st.session_state.last_code)
-                        st.success("Code executed successfully.")
+                    success, message = execute_code(st.session_state.last_code)
+                    if success:
+                        st.success(message)
                         st.session_state.last_error = None
-                    except Exception as e:
-                        error_msg = f"Error executing code: {str(e)}"
-                        st.error(error_msg)
-                        st.session_state.last_error = str(e)
+                    else:
+                        st.session_state.last_error = message
             else:
                 st.warning("No code to execute. Please request a code sample first.")
 
@@ -369,55 +385,5 @@ st.write("Data saved to 'scatter_data.csv'")
                 with st.spinner("Fixing code..."):
                     fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
                     st.session_state.last_code = fixed_code
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
-
-    with col3:
-        if st.button("🧹 Clear Code", key="clear_code"):
-            st.session_state.last_code = None
-            st.session_state.last_error = None
-
-    with col4:
-        if st.button("🧹 Clear Chat", key="clear_chat"):
-            st.session_state.messages = []
-            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-
-    with col5:
-        if st.button("🔄 Reset All", key="reset_all"):
-            st.session_state.messages = []
-            st.session_state.last_error = None
-            st.session_state.last_code = None
-            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
-
-        # Process with GPT-4
-        if openai_api_key:
-            with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
-                
-                # Update last_code if the response contains a code block
-                if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-        else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-    # Display generated files
-    st.markdown("### Generated Files")
-    files = list_files()
-    if files:
-        for file in files:
-            if st.button(f"View {file}"):
-                content = load_file(file)
-                st.text_area("File Content", content, height=200)
-    else:
-        st.info("No generated files yet.")
-
-# Entry point
-if __name__ == "__main__":
-    main()
+                    success, message = execute_code(fixed_code)
+                    if success:
