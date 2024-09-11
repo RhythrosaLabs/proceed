@@ -16,42 +16,16 @@ import cv2
 from PIL import Image
 import io
 import base64
-import pedalboard
-from pedalboard import Pedalboard, Chorus, Reverb
-import mido
-import pygame
-import soundfile as sf
-import sox
 import os
 import contextlib
 import plotly.graph_objs as go
-import uuid
 
-# Custom CSS (unchanged)
-# Custom CSS with added styles for bottom bar and chat input
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-    }
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        font-weight: bold;
-        border-radius: 20px;
-        border: none;
-        padding: 10px 20px;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white;
-        border-radius: 10px;
     }
     .chat-message {
         padding: 1.5rem;
@@ -93,19 +67,6 @@ st.markdown("""
         padding: 10px;
         margin-bottom: 10px;
     }
-    .fix-button {
-        background-color: #FFA500;
-        color: white;
-        font-weight: bold;
-        border-radius: 20px;
-        border: none;
-        padding: 5px 10px;
-        transition: all 0.3s ease;
-    }
-    .fix-button:hover {
-        background-color: #FF8C00;
-        transform: scale(1.05);
-    }
     .code-execution-area {
         background-color: rgba(0, 0, 0, 0.2);
         border-radius: 10px;
@@ -114,44 +75,67 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* New styles for the bottom action bar */
-    .bottom-bar {
+    /* Locked bottom bar styles */
+    .locked-bottom-bar {
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
-        background-color: rgba(49, 51, 63, 0.9);
+        background-color: rgba(49, 51, 63, 0.95);
         padding: 10px;
         z-index: 999;
         display: flex;
-        justify-content: space-around;
-        align-items: center;
+        flex-direction: column;
+        gap: 10px;
     }
 
-    .bottom-bar .stButton > button {
-        height: 2.5rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
+    .chat-input-container {
+        display: flex;
+        gap: 10px;
+    }
+
+    .chat-input-container .stTextInput {
+        flex-grow: 1;
+    }
+
+    .chat-input-container .stTextInput > div {
+        margin-bottom: 0 !important;
+    }
+
+    .chat-input-container .stTextInput > div > div > input {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-radius: 20px;
+        padding: 10px 15px;
+        border: none;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .action-buttons .stButton > button {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+        border-radius: 20px;
+        border: none;
+        padding: 5px 15px;
+        transition: all 0.3s ease;
+        flex-grow: 1;
+        font-size: 0.8rem;
+    }
+
+    .action-buttons .stButton > button:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
     }
 
     /* Adjust main content to not be hidden behind bottom bar */
     .main .block-container {
-        padding-bottom: 5rem;
-    }
-
-    /* Custom styles for the chat input */
-    .stChatInputContainer {
-        position: fixed;
-        bottom: 4rem;
-        left: 0;
-        right: 0;
-        padding: 1rem;
-        background-color: rgba(49, 51, 63, 0.9);
-        z-index: 998;
-    }
-
-    .stChatInputContainer > div {
-        margin-bottom: 0 !important;
+        padding-bottom: 130px;
     }
 
     /* Hide default Streamlit watermark */
@@ -160,14 +144,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Function to load Lottie animation (unchanged)
+# Function to load Lottie animation
 def load_lottieurl(url: str):
     r = requests.get(url)
     if r.status_code != 200:
         return None
     return r.json()
 
-# Updated function to execute user-provided code
+# Function to execute user-provided code
 def execute_code(code):
     local_vars = {
         'st': st,
@@ -218,11 +202,6 @@ def execute_code(code):
         st.error(error_msg)
         return False, error_msg
 
-# Function to convert Pygame surface to PIL Image
-def pygame_surface_to_image(surface):
-    buffer = surface.get_view("RGB")
-    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
-
 # Functions for file system management
 def save_file(filename, content):
     with open(f"generated_files/{filename}", "w") as f:
@@ -245,12 +224,7 @@ def save_plotly(fig, filename):
 def save_image(img, filename):
     img.save(f"generated_files/{filename}")
 
-def save_audio(audio, sample_rate, filename):
-    sf.write(f"generated_files/{filename}", audio, sample_rate)
-
-
-
-# Function to call GPT-4 via requests (unchanged)
+# Function to call GPT-4 via requests
 def chat_with_gpt(prompt, api_key, conversation_history):
     api_url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -259,7 +233,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4o-mini",
+        "model": "gpt-4",
         "messages": messages,
         "max_tokens": 2000
     }
@@ -271,7 +245,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Function to display chat messages (unchanged)
+# Function to display chat messages
 def display_chat_message(role, content):
     with st.chat_message(role):
         if role == "user":
@@ -286,12 +260,13 @@ def display_chat_message(role, content):
             else:
                 st.markdown(content)
 
-# Function to fix code (unchanged)
+# Function to fix code
 def fix_code(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
 
+# Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
     
@@ -406,78 +381,77 @@ st.write("Data saved as 'scatter_data.csv'")
     else:
         st.info("No generated files yet.")
 
-    # Chat input (remains at the bottom)
-    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
-
-    # Bottom action bar
-    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        if st.button("🏃‍♂️ Run Code", key="run_code"):
-            if st.session_state.last_code:
-                with st.spinner("Executing code..."):
-                    success, message = execute_code(st.session_state.last_code)
-                    if success:
-                        st.success(message)
-                        st.session_state.last_error = None
-                    else:
-                        st.session_state.last_error = message
-            else:
-                st.warning("No code to execute. Please request a code sample first.")
-
-    with col2:
-        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
-            if st.session_state.last_error and st.session_state.last_code:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                    st.session_state.last_code = fixed_code
-                    success, message = execute_code(fixed_code)
-                    if success:
-                        st.success("Code fixed and executed successfully.")
-                        st.session_state.last_error = None
-                    else:
-                        st.error(f"Error after fixing: {message}")
-                        st.session_state.last_error = message
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
+    # Locked bottom bar
+    st.markdown('<div class="locked-bottom-bar">', unsafe_allow_html=True)
+    
+    # Chat input
+    with st.container():
+        st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
+        prompt = st.text_input("Ask me anything about coding or request a visualization...", key="chat_input")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Action buttons
+    with st.container():
+        st.markdown('<div class="action-buttons">', unsafe_allow_html=True)
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            if st.button("🏃‍♂️ Run", key="run_code"):
+                if st.session_state.last_code:
+                    with st.spinner("Executing code..."):
+                        success, message = execute_code(st.session_state.last_code)
+                        if success:
+                            st.success(message)
+                            st.session_state.last_error = None
+                        else:
+                            st.session_state.last_error = message
+                else:
+                    st.warning("No code to execute. Please request a code sample first.")
+        with col2:
+            if st.button("🔧 Fix", key="fix_and_rerun"):
+                if st.session_state.last_error and st.session_state.last_code:
+                    with st.spinner("Fixing code..."):
+                        fixed_code = fix_code
 
     with col3:
-        if st.button("🧹 Clear Code", key="clear_code"):
-            st.session_state.last_code = None
-            st.session_state.last_error = None
-            st.experimental_rerun()
-
-    with col4:
-        if st.button("🧹 Clear Chat", key="clear_chat"):
-            st.session_state.messages = []
-            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-            st.experimental_rerun()
-
-    with col5:
-        if st.button("🔄 Reset All", key="reset_all"):
-            st.session_state.messages = []
-            st.session_state.last_error = None
-            st.session_state.last_code = None
-            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-            st.experimental_rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if prompt:
-        # Process with GPT-4
-        if api_key:
-            with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, api_key, st.session_state.messages)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
-                
-                # Update last_code if the response contains a code block
-                if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                if st.button("🧹 Clear Code", key="clear_code"):
+                    st.session_state.last_code = None
+                    st.session_state.last_error = None
                     st.experimental_rerun()
-        else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-# Entry point
-if __name__ == "__main__":
-    main()
+            with col4:
+                if st.button("🧹 Clear Chat", key="clear_chat"):
+                    st.session_state.messages = []
+                    st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+                    st.experimental_rerun()
+            with col5:
+                if st.button("🔄 Reset", key="reset_all"):
+                    st.session_state.messages = []
+                    st.session_state.last_error = None
+                    st.session_state.last_code = None
+                    st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+                    st.experimental_rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+        if prompt:
+            # Add user message to chat history
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            display_chat_message("user", prompt)
+    
+            # Process with GPT-4
+            if api_key:
+                with st.spinner("Thinking..."):
+                    response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    display_chat_message("assistant", response)
+                    
+                    # Update last_code if the response contains a code block
+                    if "```python" in response:
+                        st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                        st.experimental_rerun()
+            else:
+                st.warning("Please enter a valid OpenAI API key in the sidebar.")
+    
+    # Entry point
+    if __name__ == "__main__":
+        main()
