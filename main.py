@@ -20,7 +20,7 @@ import os
 import contextlib
 import plotly.graph_objs as go
 
-# Custom CSS
+# Custom CSS with locked bottom bar
 st.markdown("""
 <style>
     .stApp {
@@ -83,7 +83,7 @@ st.markdown("""
         right: 0;
         background-color: rgba(49, 51, 63, 0.95);
         padding: 10px;
-        z-index: 999;
+        z-index: 1000000;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -135,12 +135,17 @@ st.markdown("""
 
     /* Adjust main content to not be hidden behind bottom bar */
     .main .block-container {
-        padding-bottom: 130px;
+        padding-bottom: 160px;
     }
 
     /* Hide default Streamlit watermark */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+
+    /* Ensure Streamlit components don't overlap the bottom bar */
+    .stApp {
+        margin-bottom: 160px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -266,7 +271,6 @@ def fix_code(code, error_message, api_key):
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
 
-# Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
     
@@ -382,56 +386,72 @@ st.write("Data saved as 'scatter_data.csv'")
         st.info("No generated files yet.")
 
     # Locked bottom bar
-    st.markdown('<div class="locked-bottom-bar">', unsafe_allow_html=True)
-    
-    # Chat input
-    with st.container():
-        st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
+    locked_bar = st.container()
+    with locked_bar:
+        st.markdown('<div class="locked-bottom-bar">', unsafe_allow_html=True)
+        
+        # Chat input
         prompt = st.text_input("Ask me anything about coding or request a visualization...", key="chat_input")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Action buttons
-    with st.container():
-        st.markdown('<div class="action-buttons">', unsafe_allow_html=True)
+        
+        # Action buttons
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            if st.button("🏃‍♂️ Run", key="run_code"):
-                if st.session_state.last_code:
-                    with st.spinner("Executing code..."):
-                        success, message = execute_code(st.session_state.last_code)
-                        if success:
-                            st.success(message)
-                            st.session_state.last_error = None
-                        else:
-                            st.session_state.last_error = message
-                else:
-                    st.warning("No code to execute. Please request a code sample first.")
+            run_button = st.button("🏃‍♂️ Run", key="run_code")
         with col2:
-            if st.button("🔧 Fix", key="fix_and_rerun"):
-                if st.session_state.last_error and st.session_state.last_code:
-                    with st.spinner("Fixing code..."):
-                        fixed_code = fix_code
-
+            fix_button = st.button("🔧 Fix", key="fix_and_rerun")
         with col3:
-                    if st.button("🧹 Clear Code", key="clear_code"):
-                        st.session_state.last_code = None
-                        st.session_state.last_error = None
-                        st.experimental_rerun()
+            clear_code_button = st.button("🧹 Clear Code", key="clear_code")
         with col4:
-            if st.button("🧹 Clear Chat", key="clear_chat"):
-                st.session_state.messages = []
-                st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-                st.experimental_rerun()
+            clear_chat_button = st.button("🧹 Clear Chat", key="clear_chat")
         with col5:
-            if st.button("🔄 Reset", key="reset_all"):
-                st.session_state.messages = []
-                st.session_state.last_error = None
-                st.session_state.last_code = None
-                st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-                st.experimental_rerun()
+            reset_button = st.button("🔄 Reset", key="reset_all")
+        
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Handle button actions
+    if run_button:
+        if st.session_state.last_code:
+            with st.spinner("Executing code..."):
+                success, message = execute_code(st.session_state.last_code)
+                if success:
+                    st.success(message)
+                    st.session_state.last_error = None
+                else:
+                    st.session_state.last_error = message
+        else:
+            st.warning("No code to execute. Please request a code sample first.")
+
+    if fix_button:
+        if st.session_state.last_error and st.session_state.last_code:
+            with st.spinner("Fixing code..."):
+                fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                st.session_state.last_code = fixed_code
+                success, message = execute_code(fixed_code)
+                if success:
+                    st.success("Code fixed and executed successfully.")
+                    st.session_state.last_error = None
+                else:
+                    st.error(f"Error after fixing: {message}")
+                    st.session_state.last_error = message
+        else:
+            st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    if clear_code_button:
+        st.session_state.last_code = None
+        st.session_state.last_error = None
+        st.experimental_rerun()
+
+    if clear_chat_button:
+        st.session_state.messages = []
+        st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+        st.experimental_rerun()
+
+    if reset_button:
+        st.session_state.messages = []
+        st.session_state.last_error = None
+        st.session_state.last_code = None
+        st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+        st.experimental_rerun()
 
     if prompt:
         # Add user message to chat history
@@ -451,7 +471,3 @@ st.write("Data saved as 'scatter_data.csv'")
                     st.experimental_rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-# Entry point
-if __name__ == "__main__":
-    main()
