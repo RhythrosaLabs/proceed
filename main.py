@@ -23,7 +23,6 @@ import pygame
 import soundfile as sf
 import sox
 import os
-import replicate
 
 # Custom CSS
 st.markdown("""
@@ -147,7 +146,6 @@ def execute_code(code):
         'pygame': pygame,
         'sf': sf,
         'sox': sox,
-        'replicate': replicate,
         'save_file': save_file,
         'load_file': load_file,
         'list_files': list_files
@@ -178,7 +176,7 @@ def pygame_surface_to_image(surface):
     img = Image.frombytes("RGB", surface.get_size(), buffer.raw)
     st.image(img, caption="Pygame Output", use_column_width=True)
 
-# New functions for file system management
+# Functions for file system management
 def save_file(filename, content):
     with open(f"generated_files/{filename}", "w") as f:
         f.write(content)
@@ -239,7 +237,7 @@ def main():
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization, audio processing, and image generation."})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and audio processing."})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -249,16 +247,15 @@ def main():
     if not os.path.exists("generated_files"):
         os.makedirs("generated_files")
 
-    # Sidebar for API key inputs and library information
+    # Sidebar for API key input and library information
     with st.sidebar:
         st.header("Settings")
         openai_api_key = st.text_input("Enter your OpenAI API Key", type="password")
-        replicate_api_key = st.text_input("Enter your Replicate API Key", type="password")
         st.markdown("---")
         st.markdown("### Quick Tips:")
         st.markdown("1. Chat naturally about coding tasks")
         st.markdown("2. Request code samples for various tasks")
-        st.markdown("3. Experiment with data, audio, image, and AI models")
+        st.markdown("3. Experiment with data visualization and audio processing")
         st.markdown("4. Use buttons below chat to manage code and conversation")
         st.markdown("5. Access generated files using provided functions")
         
@@ -270,7 +267,6 @@ def main():
         st.markdown("- Audio: librosa, pedalboard, mido, soundfile, sox")
         st.markdown("- Image: PIL, cv2")
         st.markdown("- Game Dev: pygame")
-        st.markdown("- AI Models: replicate")
         st.markdown("- File System: save_file, load_file, list_files")
         st.markdown("- Others: io, base64")
 
@@ -290,24 +286,29 @@ def main():
             st.info("No code to display. Request a code sample or write some code to get started!")
             st.markdown("Here's an example to try:")
             example_code = """
-# Example: Generate an image using Stable Diffusion via Replicate API
-import replicate
+# Example: Create an interactive scatter plot with Plotly
+import plotly.express as px
+import numpy as np
 
-# Set your Replicate API token
-os.environ["REPLICATE_API_TOKEN"] = "your_replicate_api_key_here"
+# Generate some random data
+np.random.seed(42)
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100),
+    'size': np.random.randint(1, 20, 100)
+})
 
-# Run the model
-output = replicate.run(
-    "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
-    input={"prompt": "A futuristic city with flying cars"}
-)
+# Create a scatter plot
+fig = px.scatter(data, x='x', y='y', size='size', color='size',
+                 title='Interactive Scatter Plot')
+fig.update_layout(template='plotly_dark')
 
-# Display the generated image
-st.image(output[0], caption="Generated Image", use_column_width=True)
+# Display the plot
+st.plotly_chart(fig)
 
-# Save the image URL
-save_file("generated_image_url.txt", output[0])
-st.write("Image URL saved to 'generated_image_url.txt'")
+# Save the data
+data.to_csv('generated_files/scatter_data.csv', index=False)
+st.write("Data saved to 'scatter_data.csv'")
 """
             st.code(example_code, language="python")
             if st.button("Try This Example"):
@@ -325,7 +326,6 @@ st.write("Image URL saved to 'generated_image_url.txt'")
             if st.session_state.last_code:
                 with st.spinner("Executing code..."):
                     try:
-                        os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
                         result = execute_code(st.session_state.last_code)
                         st.success("Code executed successfully.")
                         st.session_state.last_error = None
