@@ -8,3 +8,4 @@ plotly
 nltk
 networkx
 seaborn
+altair
