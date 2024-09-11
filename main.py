@@ -25,21 +25,104 @@ import sox
 import os
 import replicate
 
-# Custom CSS (unchanged)
+# Custom CSS
 st.markdown("""
 <style>
-    /* ... (previous CSS remains unchanged) ... */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+        border-radius: 20px;
+        border: none;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
+    }
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-radius: 10px;
+    }
+    .chat-message {
+        padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
+    }
+    .chat-message.user {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    .chat-message.assistant {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    .chat-message .avatar {
+        width: 20%;
+    }
+    .chat-message .avatar img {
+        max-width: 78px;
+        max-height: 78px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .chat-message .message {
+        width: 80%;
+        padding: 0 1.5rem;
+    }
+    .floating-button {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+    }
+    .code-block {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .code-block pre {
+        margin-bottom: 0;
+    }
+    .error-message {
+        background-color: rgba(255, 0, 0, 0.1);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .fix-button {
+        background-color: #FFA500;
+        color: white;
+        font-weight: bold;
+        border-radius: 20px;
+        border: none;
+        padding: 5px 10px;
+        transition: all 0.3s ease;
+    }
+    .fix-button:hover {
+        background-color: #FF8C00;
+        transform: scale(1.05);
+    }
+    .code-execution-area {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Function to load Lottie animation (unchanged)
+# Function to load Lottie animation
 def load_lottieurl(url: str):
     r = requests.get(url)
     if r.status_code != 200:
         return None
     return r.json()
 
-# Function to execute user-provided code (updated with new libraries and features)
+# Function to execute user-provided code
 def execute_code(code):
     # Create a dictionary of local variables that includes all imported libraries
     local_vars = {
@@ -89,7 +172,7 @@ def execute_code(code):
     
     return local_vars
 
-# Function to convert Pygame surface to Streamlit image (unchanged)
+# Function to convert Pygame surface to Streamlit image
 def pygame_surface_to_image(surface):
     buffer = surface.get_view("RGB")
     img = Image.frombytes("RGB", surface.get_size(), buffer.raw)
@@ -107,19 +190,49 @@ def load_file(filename):
 def list_files():
     return os.listdir("generated_files")
 
-# Function to call GPT-4 via requests (unchanged)
+# Function to call GPT-4 via requests
 def chat_with_gpt(prompt, api_key, conversation_history):
-    # ... (unchanged)
+    api_url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    messages = conversation_history + [{"role": "user", "content": prompt}]
+    data = {
+        "model": "gpt-4",
+        "messages": messages,
+        "max_tokens": 150
+    }
+    try:
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+        return result['choices'][0]['message']['content']
+    except Exception as e:
+        return f"Error: {str(e)}"
 
-# Function to display chat messages (unchanged)
+# Function to display chat messages
 def display_chat_message(role, content):
-    # ... (unchanged)
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
 
-# Function to fix code (unchanged)
+# Function to fix code
 def fix_code(code, error_message, api_key):
-    # ... (unchanged)
+    prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
+    fixed_code = chat_with_gpt(prompt, api_key, [])
+    return fixed_code
 
-# Main function to run the Streamlit app (updated with new features)
+# Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
     
