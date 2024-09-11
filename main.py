@@ -6,8 +6,18 @@ import numpy as np
 from streamlit_lottie import st_lottie
 from streamlit_ace import st_ace
 import json
+import matplotlib.pyplot as plt
+import seaborn as sns
+import altair as alt
+import pydeck as pdk
+import librosa
+import librosa.display
+import cv2
+from PIL import Image
+import io
+import base64
 
-# Custom CSS (updated to include styles for the code display)
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -97,20 +107,46 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Function to load Lottie animation (unchanged)
+# Function to load Lottie animation
 def load_lottieurl(url: str):
     r = requests.get(url)
     if r.status_code != 200:
         return None
     return r.json()
 
-# Function to execute user-provided code (unchanged)
+# Function to execute user-provided code
 def execute_code(code):
-    local_vars = {}
+    # Create a dictionary of local variables that includes all imported libraries
+    local_vars = {
+        'st': st,
+        'px': px,
+        'pd': pd,
+        'np': np,
+        'plt': plt,
+        'sns': sns,
+        'alt': alt,
+        'pdk': pdk,
+        'librosa': librosa,
+        'cv2': cv2,
+        'Image': Image,
+        'io': io,
+        'base64': base64
+    }
+    
+    # Execute the code
     exec(code, globals(), local_vars)
+    
+    # Check if there's a matplotlib figure to display
+    if 'plt' in local_vars and plt.get_fignums():
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        st.image(buf, use_column_width=True)
+        plt.close()
+    
     return local_vars
 
-# Function to call GPT-4 via requests (unchanged)
+# Function to call GPT-4 via requests
 def chat_with_gpt(prompt, api_key, conversation_history):
     api_url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -119,9 +155,9 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4o-mini",
+        "model": "gpt-4",
         "messages": messages,
-        "max_tokens": 2000
+        "max_tokens": 150
     }
     try:
         response = requests.post(api_url, headers=headers, json=data)
@@ -131,7 +167,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Function to display chat messages (unchanged)
+# Function to display chat messages
 def display_chat_message(role, content):
     with st.chat_message(role):
         if role == "user":
@@ -146,7 +182,7 @@ def display_chat_message(role, content):
             else:
                 st.markdown(content)
 
-# Function to fix code (unchanged)
+# Function to fix code
 def fix_code(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
@@ -154,12 +190,12 @@ def fix_code(code, error_message, api_key):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("🚀 Conversational Coding Assistant")
+    st.title("🚀 Advanced Coding Assistant")
     
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations."})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various visualizations and data processing tasks."})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -172,11 +208,20 @@ def main():
         st.markdown("---")
         st.markdown("### Quick Tips:")
         st.markdown("1. Chat naturally about coding tasks")
-        st.markdown("2. Request code samples or explanations")
-        st.markdown("3. Review the code in the execution area")
-        st.markdown("4. Click 'Run Code' to execute")
+        st.markdown("2. Request code samples for various visualizations")
+        st.markdown("3. Experiment with image, audio, and video processing")
+        st.markdown("4. Click 'Run Code' to execute and see results")
         st.markdown("5. If there's an error, use 'Fix and Rerun'")
         st.markdown("6. Use 'Clear Chat' to start over")
+        
+        st.markdown("---")
+        st.markdown("### Available Libraries:")
+        st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
+        st.markdown("- Data: pandas, numpy")
+        st.markdown("- Geospatial: pydeck")
+        st.markdown("- Audio: librosa")
+        st.markdown("- Image: PIL, cv2")
+        st.markdown("- Others: io, base64")
 
     # Display chat messages
     for message in st.session_state.messages:
@@ -192,6 +237,32 @@ def main():
             st.code(st.session_state.last_code, language="python")
         else:
             st.info("No code to display. Request a code sample or write some code to get started!")
+            st.markdown("Here's an example to try:")
+            example_code = """
+# Example: Create a scatter plot with Plotly
+import plotly.express as px
+import numpy as np
+
+# Generate some random data
+np.random.seed(42)
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100),
+    'size': np.random.randint(1, 20, 100)
+})
+
+# Create a scatter plot
+fig = px.scatter(data, x='x', y='y', size='size', color='size',
+                 title='Interactive Scatter Plot')
+fig.update_layout(template='plotly_dark')
+
+# Display the plot
+st.plotly_chart(fig)
+"""
+            st.code(example_code, language="python")
+            if st.button("Try This Example"):
+                st.session_state.last_code = example_code
+                st.experimental_rerun()
 
         # Action buttons
         col1, col2, col3 = st.columns(3)
@@ -201,11 +272,7 @@ def main():
                     with st.spinner("Executing code..."):
                         try:
                             result = execute_code(st.session_state.last_code)
-                            output = "Code executed successfully."
-                            if "fig" in result:
-                                st.plotly_chart(result["fig"], use_container_width=True, config={'displayModeBar': False})
-                                output += "\n\nVisualization displayed above."
-                            st.success(output)
+                            st.success("Code executed successfully.")
                             st.session_state.last_error = None
                         except Exception as e:
                             error_msg = f"Error executing code: {str(e)}"
@@ -233,7 +300,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
-    prompt = st.chat_input("Ask me anything about coding...")
+    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
 
     if prompt:
         # Add user message to chat history
