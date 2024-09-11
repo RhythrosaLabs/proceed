@@ -121,7 +121,6 @@ def load_lottieurl(url: str):
         return None
     return r.json()
 
-# Function to execute user-provided code
 def execute_code(code):
     # Create a dictionary of local variables that includes all imported libraries
     local_vars = {
@@ -151,24 +150,52 @@ def execute_code(code):
         'list_files': list_files
     }
     
-    # Execute the code
-    exec(code, globals(), local_vars)
+    # Create a StringIO object to capture print outputs
+    output = io.StringIO()
     
-    # Check if there's a matplotlib figure to display
-    if 'plt' in local_vars and plt.get_fignums():
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-        st.image(buf, use_column_width=True)
-        plt.close()
+    try:
+        # First, try to compile the code to catch syntax errors
+        compile(code, '<string>', 'exec')
+        
+        # If compilation succeeds, execute the code
+        with contextlib.redirect_stdout(output):
+            exec(code, globals(), local_vars)
+        
+        # Display any print outputs
+        if output.getvalue():
+            st.text("Print output:")
+            st.code(output.getvalue(), language="")
+        
+        # Check if there's a matplotlib figure to display
+        if 'plt' in local_vars and plt.get_fignums():
+            st.pyplot(plt)
+            plt.close()
+        
+        # Check if there's a Plotly figure to display
+        if 'fig' in local_vars and isinstance(local_vars['fig'], go.Figure):
+            st.plotly_chart(local_vars['fig'])
+        
+        # Check if there's a pygame surface to display
+        if 'pygame' in local_vars and pygame.get_init():
+            surface = pygame.display.get_surface()
+            if surface:
+                pygame_surface_to_image(surface)
+        
+        # Check for audio output
+        if 'audio' in local_vars and isinstance(local_vars['audio'], np.ndarray):
+            st.audio(local_vars['audio'], sample_rate=local_vars.get('sample_rate', 44100))
+        
+        return True, "Code executed successfully."
     
-    # Check if there's a pygame surface to display
-    if 'pygame' in local_vars and pygame.get_init():
-        surface = pygame.display.get_surface()
-        if surface:
-            pygame_surface_to_image(surface)
+    except SyntaxError as e:
+        error_msg = f"Syntax Error: {str(e)}"
+        st.error(error_msg)
+        return False, error_msg
     
-    return local_vars
+    except Exception as e:
+        error_msg = f"Error: {str(e)}"
+        st.error(error_msg)
+        return False, error_msg
 
 # Function to convert Pygame surface to Streamlit image
 def pygame_surface_to_image(surface):
