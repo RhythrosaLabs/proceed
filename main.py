@@ -417,41 +417,41 @@ st.write("Data saved as 'scatter_data.csv'")
                     st.session_state.last_code = None
                     st.session_state.last_error = None
                     st.experimental_rerun()
-            with col4:
-                if st.button("🧹 Clear Chat", key="clear_chat"):
-                    st.session_state.messages = []
-                    st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-                    st.experimental_rerun()
-            with col5:
-                if st.button("🔄 Reset", key="reset_all"):
-                    st.session_state.messages = []
-                    st.session_state.last_error = None
-                    st.session_state.last_code = None
-                    st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-                    st.experimental_rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        
+        with col4:
+            if st.button("🧹 Clear Chat", key="clear_chat"):
+                st.session_state.messages = []
+                st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+                st.experimental_rerun()
+        with col5:
+            if st.button("🔄 Reset", key="reset_all"):
+                st.session_state.messages = []
+                st.session_state.last_error = None
+                st.session_state.last_code = None
+                st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+                st.experimental_rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     
-        if prompt:
-            # Add user message to chat history
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            display_chat_message("user", prompt)
-    
-            # Process with GPT-4
-            if api_key:
-                with st.spinner("Thinking..."):
-                    response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    display_chat_message("assistant", response)
-                    
-                    # Update last_code if the response contains a code block
-                    if "```python" in response:
-                        st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-                        st.experimental_rerun()
-            else:
-                st.warning("Please enter a valid OpenAI API key in the sidebar.")
-    
-    # Entry point
-    if __name__ == "__main__":
-        main()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        # Process with GPT-4
+        if api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                display_chat_message("assistant", response)
+                
+                # Update last_code if the response contains a code block
+                if "```python" in response:
+                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                    st.experimental_rerun()
+        else:
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
+
+# Entry point
+if __name__ == "__main__":
+    main()
