@@ -21,3 +21,4 @@ pygame
 soundfile
 sox
 replicate
+music21
