@@ -12,3 +12,6 @@ altair
 streamlit_lottie
 streamlit_ace
 pydeck
+librosa
+opencv-python-headless
+Pillow
