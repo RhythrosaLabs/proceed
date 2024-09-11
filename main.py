@@ -124,7 +124,7 @@ def load_lottieurl(url: str):
         return None
     return r.json()
 
-# Updated execute_code function
+# Updated function to execute user-provided code
 def execute_code(code):
     local_vars = {
         'st': st,
@@ -140,14 +140,6 @@ def execute_code(code):
         'Image': Image,
         'io': io,
         'base64': base64,
-        'pedalboard': pedalboard,
-        'Pedalboard': Pedalboard,
-        'Chorus': Chorus,
-        'Reverb': Reverb,
-        'mido': mido,
-        'pygame': pygame,
-        'sf': sf,
-        'sox': sox,
         'save_file': save_file,
         'load_file': load_file,
         'list_files': list_files
@@ -156,8 +148,6 @@ def execute_code(code):
     output = io.StringIO()
     
     try:
-        compile(code, '<string>', 'exec')
-        
         with contextlib.redirect_stdout(output):
             exec(code, globals(), local_vars)
         
@@ -175,27 +165,11 @@ def execute_code(code):
             st.plotly_chart(local_vars['fig'])
             save_plotly(local_vars['fig'], "plotly_plot.html")
         
-        if 'pygame' in local_vars and pygame.get_init():
-            surface = pygame.display.get_surface()
-            if surface:
-                img = pygame_surface_to_image(surface)
-                st.image(img, caption="Pygame Output", use_column_width=True)
-                save_image(img, "pygame_output.png")
-        
-        if 'audio' in local_vars and isinstance(local_vars['audio'], np.ndarray):
-            st.audio(local_vars['audio'], sample_rate=local_vars.get('sample_rate', 44100))
-            save_audio(local_vars['audio'], local_vars.get('sample_rate', 44100), "audio_output.wav")
-        
-        # Check for PIL Image
         if 'image' in local_vars and isinstance(local_vars['image'], Image.Image):
             st.image(local_vars['image'], caption="Generated Image", use_column_width=True)
             save_image(local_vars['image'], "generated_image.png")
         
         return True, "Code executed successfully."
-    except SyntaxError as e:
-        error_msg = f"Syntax Error: {str(e)}"
-        st.error(error_msg)
-        return False, error_msg
     except Exception as e:
         error_msg = f"Error: {str(e)}"
         st.error(error_msg)
@@ -230,6 +204,8 @@ def save_image(img, filename):
 
 def save_audio(audio, sample_rate, filename):
     sf.write(f"generated_files/{filename}", audio, sample_rate)
+
+
 
 # Function to call GPT-4 via requests (unchanged)
 def chat_with_gpt(prompt, api_key, conversation_history):
@@ -280,7 +256,7 @@ def main():
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and audio processing."})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and image processing."})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -290,27 +266,26 @@ def main():
     if not os.path.exists("generated_files"):
         os.makedirs("generated_files")
 
-    # Sidebar for API key input and library information
+    # Sidebar for API key input
     with st.sidebar:
         st.header("Settings")
-        openai_api_key = st.text_input("Enter your OpenAI API Key", type="password")
+        api_key = st.text_input("Enter your OpenAI API Key", type="password")
         st.markdown("---")
         st.markdown("### Quick Tips:")
         st.markdown("1. Chat naturally about coding tasks")
-        st.markdown("2. Request code samples for various tasks")
-        st.markdown("3. Experiment with data visualization and audio processing")
-        st.markdown("4. Use buttons below chat to manage code and conversation")
-        st.markdown("5. Access generated files using provided functions")
+        st.markdown("2. Request code samples for various visualizations")
+        st.markdown("3. Experiment with image and data processing")
+        st.markdown("4. Click 'Run Code' to execute and see results")
+        st.markdown("5. If there's an error, use 'Fix and Rerun'")
+        st.markdown("6. Use 'Clear Chat' to start over")
         
         st.markdown("---")
-        st.markdown("### Available Libraries and Features:")
+        st.markdown("### Available Libraries:")
         st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
         st.markdown("- Data: pandas, numpy")
         st.markdown("- Geospatial: pydeck")
-        st.markdown("- Audio: librosa, pedalboard, mido, soundfile, sox")
+        st.markdown("- Audio: librosa")
         st.markdown("- Image: PIL, cv2")
-        st.markdown("- Game Dev: pygame")
-        st.markdown("- File System: save_file, load_file, list_files")
         st.markdown("- Others: io, base64")
 
     # Display chat messages
@@ -329,88 +304,80 @@ def main():
             st.info("No code to display. Request a code sample or write some code to get started!")
             st.markdown("Here's an example to try:")
             example_code = """
-# Example: Create a smiley face image
-from PIL import Image, ImageDraw
+# Example: Create a scatter plot with Plotly and save it
+import plotly.express as px
+import numpy as np
 
-# Create a new image with a white background
-image = Image.new('RGB', (200, 200), color='white')
+# Generate some random data
+np.random.seed(42)
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100),
+    'size': np.random.randint(1, 20, 100)
+})
 
-# Create a drawing object
-draw = ImageDraw.Draw(image)
+# Create a scatter plot
+fig = px.scatter(data, x='x', y='y', size='size', color='size',
+                 title='Interactive Scatter Plot')
+fig.update_layout(template='plotly_dark')
 
-# Draw the face
-draw.ellipse([20, 20, 180, 180], outline='black', width=2)
+# Display the plot
+st.plotly_chart(fig)
 
-# Draw the eyes
-draw.ellipse([55, 65, 85, 95], fill='black')
-draw.ellipse([115, 65, 145, 95], fill='black')
+# Save the plot
+save_plotly(fig, "interactive_scatter_plot.html")
+st.write("Plot saved as 'interactive_scatter_plot.html'")
 
-# Draw the smile
-draw.arc([50, 85, 150, 155], start=0, end=180, fill='black', width=2)
-
-# Display the image
-st.image(image, caption='Smiley Face', use_column_width=True)
-
-# Save the image
-image.save('generated_files/smiley_face.png')
-st.write("Image saved as 'smiley_face.png'")
+# Save the data
+data.to_csv('generated_files/scatter_data.csv', index=False)
+st.write("Data saved as 'scatter_data.csv'")
 """
             st.code(example_code, language="python")
             if st.button("Try This Example"):
                 st.session_state.last_code = example_code
+                st.experimental_rerun()
+
+        # Action buttons
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("🏃‍♂️ Run Code", key="run_code"):
+                if st.session_state.last_code:
+                    with st.spinner("Executing code..."):
+                        success, message = execute_code(st.session_state.last_code)
+                        if success:
+                            st.success(message)
+                            st.session_state.last_error = None
+                        else:
+                            st.session_state.last_error = message
+                else:
+                    st.warning("No code to execute. Please request a code sample first.")
+
+        with col2:
+            if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+                if st.session_state.last_error and st.session_state.last_code:
+                    with st.spinner("Fixing code..."):
+                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                        st.session_state.last_code = fixed_code
+                        success, message = execute_code(fixed_code)
+                        if success:
+                            st.success("Code fixed and executed successfully.")
+                            st.session_state.last_error = None
+                        else:
+                            st.error(f"Error after fixing: {message}")
+                            st.session_state.last_error = message
+                else:
+                    st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+        with col3:
+            if st.button("🧹 Clear Code", key="clear_code"):
+                st.session_state.last_code = None
+                st.session_state.last_error = None
+                st.experimental_rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
     prompt = st.chat_input("Ask me anything about coding or request a visualization...")
-
-    # Action buttons
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        if st.button("🏃‍♂️ Run Code", key="run_code"):
-            if st.session_state.last_code:
-                with st.spinner("Executing code..."):
-                    success, message = execute_code(st.session_state.last_code)
-                    if success:
-                        st.success(message)
-                        st.session_state.last_error = None
-                    else:
-                        st.session_state.last_error = message
-            else:
-                st.warning("No code to execute. Please request a code sample first.")
-
-    with col2:
-        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
-            if st.session_state.last_error and st.session_state.last_code:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
-                    st.session_state.last_code = fixed_code
-                    success, message = execute_code(fixed_code)
-                    if success:
-                        st.success("Code fixed and executed successfully.")
-                        st.session_state.last_error = None
-                    else:
-                        st.error(f"Error after fixing: {message}")
-                        st.session_state.last_error = message
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
-
-    with col3:
-        if st.button("🧹 Clear Code", key="clear_code"):
-            st.session_state.last_code = None
-            st.session_state.last_error = None
-
-    with col4:
-        if st.button("🧹 Clear Chat", key="clear_chat"):
-            st.session_state.messages = []
-            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-
-    with col5:
-        if st.button("🔄 Reset All", key="reset_all"):
-            st.session_state.messages = []
-            st.session_state.last_error = None
-            st.session_state.last_code = None
-            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
 
     if prompt:
         # Add user message to chat history
@@ -418,17 +385,25 @@ st.write("Image saved as 'smiley_face.png'")
         display_chat_message("user", prompt)
 
         # Process with GPT-4
-        if openai_api_key:
+        if api_key:
             with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
+                response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 display_chat_message("assistant", response)
                 
                 # Update last_code if the response contains a code block
                 if "```python" in response:
                     st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                    st.experimental_rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
+
+    # Clear entire chat button
+    if st.button("🧹 Clear Entire Chat", key="clear_chat"):
+        st.session_state.messages = []
+        st.session_state.last_error = None
+        st.session_state.last_code = None
+        st.experimental_rerun()
 
     # Display generated files
     st.markdown("### Generated Files")
@@ -439,8 +414,6 @@ st.write("Image saved as 'smiley_face.png'")
             with col1:
                 if file.endswith(('.png', '.jpg', '.jpeg', '.gif')):
                     st.image(f"generated_files/{file}", caption=file, use_column_width=True)
-                elif file.endswith('.wav'):
-                    st.audio(f"generated_files/{file}", format='audio/wav')
                 elif file.endswith('.html'):
                     with open(f"generated_files/{file}", 'r') as f:
                         html_string = f.read()
