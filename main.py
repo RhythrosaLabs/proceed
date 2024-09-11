@@ -1,7 +1,6 @@
 import streamlit as st
 import io
 import contextlib
-import openai
 
 # Function to execute user-provided code
 def execute_code(code):
