@@ -387,3 +387,78 @@ st.write("Image saved as 'smiley_face.png'")
                     st.session_state.last_code = fixed_code
                     success, message = execute_code(fixed_code)
                     if success:
+                        st.success("Code fixed and executed successfully.")
+                        st.session_state.last_error = None
+                    else:
+                        st.error(f"Error after fixing: {message}")
+                        st.session_state.last_error = message
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    with col3:
+        if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.last_code = None
+            st.session_state.last_error = None
+
+    with col4:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+
+    with col5:
+        if st.button("🔄 Reset All", key="reset_all"):
+            st.session_state.messages = []
+            st.session_state.last_error = None
+            st.session_state.last_code = None
+            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        # Process with GPT-4
+        if openai_api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                display_chat_message("assistant", response)
+                
+                # Update last_code if the response contains a code block
+                if "```python" in response:
+                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+        else:
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
+
+    # Display generated files
+    st.markdown("### Generated Files")
+    files = list_files()
+    if files:
+        for file in files:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                if file.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    st.image(f"generated_files/{file}", caption=file, use_column_width=True)
+                elif file.endswith('.wav'):
+                    st.audio(f"generated_files/{file}", format='audio/wav')
+                elif file.endswith('.html'):
+                    with open(f"generated_files/{file}", 'r') as f:
+                        html_string = f.read()
+                    st.components.v1.html(html_string, height=600)
+                else:
+                    content = load_file(file)
+                    st.text_area(f"Content of {file}", content, height=200)
+            with col2:
+                with open(f"generated_files/{file}", "rb") as f:
+                    st.download_button(
+                        label=f"Download {file}",
+                        data=f,
+                        file_name=file,
+                        mime="application/octet-stream"
+                    )
+    else:
+        st.info("No generated files yet.")
+
+# Entry point
+if __name__ == "__main__":
+    main()
