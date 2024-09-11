@@ -9,3 +9,4 @@ nltk
 networkx
 seaborn
 altair
+streamlit_lottie
