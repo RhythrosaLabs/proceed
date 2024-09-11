@@ -210,9 +210,7 @@ def main():
         st.markdown("1. Chat naturally about coding tasks")
         st.markdown("2. Request code samples for various visualizations")
         st.markdown("3. Experiment with image, audio, and video processing")
-        st.markdown("4. Click 'Run Code' to execute and see results")
-        st.markdown("5. If there's an error, use 'Fix and Rerun'")
-        st.markdown("6. Use 'Clear Chat' to start over")
+        st.markdown("4. Use buttons below chat to manage code and conversation")
         
         st.markdown("---")
         st.markdown("### Available Libraries:")
@@ -262,45 +260,54 @@ st.plotly_chart(fig)
             st.code(example_code, language="python")
             if st.button("Try This Example"):
                 st.session_state.last_code = example_code
-                st.experimental_rerun()
-
-        # Action buttons
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("🏃‍♂️ Run Code", key="run_code"):
-                if st.session_state.last_code:
-                    with st.spinner("Executing code..."):
-                        try:
-                            result = execute_code(st.session_state.last_code)
-                            st.success("Code executed successfully.")
-                            st.session_state.last_error = None
-                        except Exception as e:
-                            error_msg = f"Error executing code: {str(e)}"
-                            st.error(error_msg)
-                            st.session_state.last_error = str(e)
-                else:
-                    st.warning("No code to execute. Please request a code sample first.")
-
-        with col2:
-            if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
-                if st.session_state.last_error and st.session_state.last_code:
-                    with st.spinner("Fixing code..."):
-                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                        st.session_state.last_code = fixed_code
-                        st.experimental_rerun()
-                else:
-                    st.warning("No error to fix or no previous code execution. Please run some code first.")
-
-        with col3:
-            if st.button("🧹 Clear Code", key="clear_code"):
-                st.session_state.last_code = None
-                st.session_state.last_error = None
-                st.experimental_rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
     prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+
+    # Action buttons
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        if st.button("🏃‍♂️ Run Code", key="run_code"):
+            if st.session_state.last_code:
+                with st.spinner("Executing code..."):
+                    try:
+                        result = execute_code(st.session_state.last_code)
+                        st.success("Code executed successfully.")
+                        st.session_state.last_error = None
+                    except Exception as e:
+                        error_msg = f"Error executing code: {str(e)}"
+                        st.error(error_msg)
+                        st.session_state.last_error = str(e)
+            else:
+                st.warning("No code to execute. Please request a code sample first.")
+
+    with col2:
+        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+            if st.session_state.last_error and st.session_state.last_code:
+                with st.spinner("Fixing code..."):
+                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                    st.session_state.last_code = fixed_code
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    with col3:
+        if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.last_code = None
+            st.session_state.last_error = None
+
+    with col4:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+
+    with col5:
+        if st.button("🔄 Reset All", key="reset_all"):
+            st.session_state.messages = []
+            st.session_state.last_error = None
+            st.session_state.last_code = None
+            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
 
     if prompt:
         # Add user message to chat history
@@ -317,16 +324,8 @@ st.plotly_chart(fig)
                 # Update last_code if the response contains a code block
                 if "```python" in response:
                     st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-                    st.experimental_rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-    # Clear entire chat button
-    if st.button("🧹 Clear Entire Chat", key="clear_chat"):
-        st.session_state.messages = []
-        st.session_state.last_error = None
-        st.session_state.last_code = None
-        st.experimental_rerun()
 
 # Entry point
 if __name__ == "__main__":
