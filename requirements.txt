@@ -11,3 +11,7 @@ seaborn
 altair
 streamlit_lottie
 streamlit_ace
+pydeck
+cv2
+pillow
+librosa
