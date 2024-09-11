@@ -34,13 +34,12 @@ def chat_with_gpt(prompt, api_key):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("Code Executor & GPT-4o-mini Chat with Tabs")
+    st.title("Code Executor & GPT-4o-mini Chat with Sidebar Tabs")
 
-    # Create tabs for API and Chat
-    tabs = st.tabs(["API", "Chat"])
+    # Sidebar tabs
+    option = st.sidebar.selectbox("Select Mode", ["API", "Chat"])
 
-    # Tab 1: API - Code Executor
-    with tabs[0]:
+    if option == "API":
         st.subheader("Write and Execute Code")
         st.write("Write Python code and run it. You can visualize data using Plotly, Altair, and more.")
 
@@ -49,7 +48,7 @@ def main():
         user_code = st.text_area("Python Code", default_code, height=300)
 
         # Button to run the code
-        if st.button("Run Code", key="run_code"):
+        if st.button("Run Code"):
             try:
                 result = execute_code(user_code)
                 st.subheader("Visualization Output")
@@ -60,8 +59,7 @@ def main():
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-    # Tab 2: Chat with GPT-4o-mini
-    with tabs[1]:
+    elif option == "Chat":
         st.subheader("Chat with GPT-4o-mini")
         st.write("Enter a prompt below to chat with GPT-4o-mini.")
 
@@ -71,7 +69,7 @@ def main():
         # Prompt Input
         prompt = st.text_area("Enter your prompt for GPT-4o-mini:", height=150)
 
-        if st.button("Chat with GPT-4o-mini", key="chat_gpt"):
+        if st.button("Chat with GPT-4o-mini"):
             if not api_key:
                 st.warning("Please enter a valid OpenAI API key.")
             elif not prompt:
