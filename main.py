@@ -7,7 +7,7 @@ from streamlit_lottie import st_lottie
 from streamlit_ace import st_ace
 import json
 
-# Custom CSS to make the UI more appealing
+# Custom CSS for the integrated UI
 st.markdown("""
 <style>
     .stApp {
@@ -32,10 +32,27 @@ st.markdown("""
         color: white;
         border-radius: 10px;
     }
-    .stPlotlyChart {
+    .chat-message {
+        padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
+    }
+    .chat-message.user {
         background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 10px;
+    }
+    .chat-message.bot {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    .chat-message .avatar {
+        width: 20%;
+    }
+    .chat-message .avatar img {
+        max-width: 78px;
+        max-height: 78px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .chat-message .message {
+        width: 80%;
+        padding: 0 1.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -73,68 +90,90 @@ def chat_with_gpt(prompt, api_key):
     except Exception as e:
         return f"Error: {str(e)}"
 
+# Function to display chat messages
+def display_chat_message(role, content):
+    with st.chat_message(role):
+        st.markdown(content)
+
 # Main function to run the Streamlit app
 def main():
-    st.title("🚀 Code Executor & GPT-4 Chat")
+    st.title("🚀 Conversational Coding Assistant")
     
-    # Load Lottie animations
-    lottie_code = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_fcfjwiyb.json")
-    lottie_chat = load_lottieurl("https://assets5.lottiefiles.com/private_files/lf30_lntyk83o.json")
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. How can I help you today?"})
 
-    # Sidebar tabs with icons
-    option = st.sidebar.selectbox("Select Mode", ["💻 Code Executor", "🤖 GPT-4 Chat"])
-
-    if option == "💻 Code Executor":
-        st.subheader("Write and Execute Code")
-        st_lottie(lottie_code, height=200, key="code_animation")
-        
-        # Use Ace editor for code input
-        user_code = st_ace(
-            value="# Example: Generate a random dataset and plot it\n"
-                  "import pandas as pd\n"
-                  "import numpy as np\n"
-                  "import plotly.express as px\n\n"
-                  "# Generate random data\n"
-                  "np.random.seed(10)\n"
-                  "data = pd.DataFrame({'x': np.random.randn(100), 'y': np.random.randn(100)})\n\n"
-                  "# Create Plotly figure\n"
-                  "fig = px.scatter(data, x='x', y='y', title='Random Scatter Plot')\n"
-                  "fig.update_layout(template='plotly_dark')\n"
-                  "fig",
-            language="python",
-            theme="monokai",
-            height=300
-        )
-
-        if st.button("🚀 Run Code"):
-            with st.spinner("Executing code..."):
-                try:
-                    result = execute_code(user_code)
-                    st.subheader("Visualization Output")
-                    if "fig" in result:
-                        st.plotly_chart(result["fig"], use_container_width=True, config={'displayModeBar': False})
-                    else:
-                        st.error("No figure found. Make sure to assign a Plotly figure to the variable `fig`.")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-
-    elif option == "🤖 GPT-4 Chat":
-        st.subheader("Chat with GPT-4")
-        st_lottie(lottie_chat, height=200, key="chat_animation")
-        
+    # Sidebar for API key input
+    with st.sidebar:
+        st.header("Settings")
         api_key = st.text_input("Enter your OpenAI API Key", type="password")
-        prompt = st.text_area("Enter your prompt for GPT-4:", height=150)
-        
-        if st.button("💬 Chat with GPT-4"):
-            if not api_key:
-                st.warning("Please enter a valid OpenAI API key.")
-            elif not prompt:
-                st.warning("Please enter a prompt.")
+        st.markdown("---")
+        st.markdown("### How to use:")
+        st.markdown("1. Enter your OpenAI API key")
+        st.markdown("2. Chat with the AI about coding tasks")
+        st.markdown("3. Use '/code' to switch to code mode")
+        st.markdown("4. Use '/run' to execute the code")
+        st.markdown("5. Use '/clear' to start a new conversation")
+
+    # Display chat messages
+    for message in st.session_state.messages:
+        display_chat_message(message["role"], message["content"])
+
+    # Chat input
+    prompt = st.chat_input("What's on your mind?")
+
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        if prompt.lower() == "/clear":
+            st.session_state.messages = []
+            st.experimental_rerun()
+
+        elif prompt.lower() == "/code":
+            # Switch to code mode
+            code = st_ace(
+                value="# Enter your Python code here\n",
+                language="python",
+                theme="monokai",
+                height=300
+            )
+            st.session_state.messages.append({"role": "assistant", "content": "Here's a code editor for you. Type your code and use '/run' to execute it."})
+            display_chat_message("assistant", "Here's a code editor for you. Type your code and use '/run' to execute it.")
+
+        elif prompt.lower() == "/run":
+            # Execute the last code block
+            last_code_block = next((msg["content"] for msg in reversed(st.session_state.messages) if msg["role"] == "user" and msg["content"].startswith("```python") and msg["content"].endswith("```")), None)
+            if last_code_block:
+                code_to_run = last_code_block.strip("```python").strip()
+                with st.spinner("Executing code..."):
+                    try:
+                        result = execute_code(code_to_run)
+                        output = "Code executed successfully."
+                        if "fig" in result:
+                            st.plotly_chart(result["fig"], use_container_width=True, config={'displayModeBar': False})
+                            output += "\n\nVisualization displayed above."
+                        st.session_state.messages.append({"role": "assistant", "content": output})
+                        display_chat_message("assistant", output)
+                    except Exception as e:
+                        error_msg = f"Error executing code: {str(e)}"
+                        st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                        display_chat_message("assistant", error_msg)
             else:
-                with st.spinner("Generating response..."):
+                st.session_state.messages.append({"role": "assistant", "content": "No code block found to execute. Please enter a code block first."})
+                display_chat_message("assistant", "No code block found to execute. Please enter a code block first.")
+
+        else:
+            # Process with GPT-4
+            if api_key:
+                with st.spinner("Thinking..."):
                     response = chat_with_gpt(prompt, api_key)
-                    st.subheader("GPT-4 Response:")
-                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    display_chat_message("assistant", response)
+            else:
+                st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
 # Entry point
 if __name__ == "__main__":
