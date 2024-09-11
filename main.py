@@ -1,6 +1,7 @@
 import streamlit as st
 import io
 import contextlib
+import requests
 
 # Function to execute user-provided code
 def execute_code(code):
@@ -16,17 +17,25 @@ def execute_code(code):
 
     return output_buffer.getvalue(), error_message
 
-# Function to call GPT-4o-mini (or any OpenAI GPT model)
+# Function to call GPT-4o-mini (or any OpenAI GPT model) via requests
 def chat_with_gpt(prompt, api_key):
-    """Send a prompt to GPT-4o-mini and return the response."""
+    """Send a prompt to GPT-4 via a requests call and return the response."""
+    api_url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "gpt-4",
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 150
+    }
+
     try:
-        openai.api_key = api_key
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        message = response['choices'][0]['message']['content']
-        return message
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()  # Raise error for bad status codes
+        result = response.json()
+        return result['choices'][0]['message']['content']
     except Exception as e:
         return f"Error: {str(e)}"
 
