@@ -412,11 +412,11 @@ st.write("Data saved as 'scatter_data.csv'")
                     with st.spinner("Fixing code..."):
                         fixed_code = fix_code
 
-    with col3:
-                if st.button("🧹 Clear Code", key="clear_code"):
-                    st.session_state.last_code = None
-                    st.session_state.last_error = None
-                    st.experimental_rerun()
+        with col3:
+                    if st.button("🧹 Clear Code", key="clear_code"):
+                        st.session_state.last_code = None
+                        st.session_state.last_error = None
+                        st.experimental_rerun()
         with col4:
             if st.button("🧹 Clear Chat", key="clear_chat"):
                 st.session_state.messages = []
