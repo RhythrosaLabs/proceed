@@ -155,9 +155,9 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4",
+        "model": "gpt-4o-mini",
         "messages": messages,
-        "max_tokens": 150
+        "max_tokens": 3000
     }
     try:
         response = requests.post(api_url, headers=headers, json=data)
