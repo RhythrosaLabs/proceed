@@ -406,76 +406,68 @@ st.write("Data saved as 'scatter_data.csv'")
     else:
         st.info("No generated files yet.")
 
-    # Unified bottom bar
-    st.markdown('<div class="unified-bottom-bar">', unsafe_allow_html=True)
-    
-    # Chat input
-    with st.container():
-        st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-        prompt = st.text_input("Ask me anything about coding or request a visualization...", key="chat_input")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Action buttons
-    with st.container():
-        st.markdown('<div class="action-buttons">', unsafe_allow_html=True)
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            if st.button("🏃‍♂️ Run", key="run_code"):
-                if st.session_state.last_code:
-                    with st.spinner("Executing code..."):
-                        success, message = execute_code(st.session_state.last_code)
-                        if success:
-                            st.success(message)
-                            st.session_state.last_error = None
-                        else:
-                            st.session_state.last_error = message
-                else:
-                    st.warning("No code to execute. Please request a code sample first.")
-        with col2:
-            if st.button("🔧 Fix", key="fix_and_rerun"):
-                if st.session_state.last_error and st.session_state.last_code:
-                    with st.spinner("Fixing code..."):
-                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                        st.session_state.last_code = fixed_code
-                        success, message = execute_code(fixed_code)
-                        if success:
-                            st.success("Code fixed and executed successfully.")
-                            st.session_state.last_error = None
-                        else:
-                            st.error(f"Error after fixing: {message}")
-                            st.session_state.last_error = message
-                else:
-                    st.warning("No error to fix or no previous code execution. Please run some code first.")
-        with col3:
-            if st.button("🧹 Clear Code", key="clear_code"):
-                st.session_state.last_code = None
-                st.session_state.last_error = None
-                st.experimental_rerun()
-        with col4:
-            if st.button("🧹 Clear Chat", key="clear_chat"):
-                st.session_state.messages = []
-                st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-                st.experimental_rerun()
-        with col5:
-            if st.button("🔄 Reset", key="reset_all"):
-                st.session_state.messages = []
-                st.session_state.last_error = None
-                st.session_state.last_code = None
-                st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-                st.experimental_rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+    # Chat input (remains at the bottom)
+    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+
+    # Bottom action bar
+    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        if st.button("🏃‍♂️ Run Code", key="run_code"):
+            if st.session_state.last_code:
+                with st.spinner("Executing code..."):
+                    success, message = execute_code(st.session_state.last_code)
+                    if success:
+                        st.success(message)
+                        st.session_state.last_error = None
+                    else:
+                        st.session_state.last_error = message
+            else:
+                st.warning("No code to execute. Please request a code sample first.")
+
+    with col2:
+        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+            if st.session_state.last_error and st.session_state.last_code:
+                with st.spinner("Fixing code..."):
+                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                    st.session_state.last_code = fixed_code
+                    success, message = execute_code(fixed_code)
+                    if success:
+                        st.success("Code fixed and executed successfully.")
+                        st.session_state.last_error = None
+                    else:
+                        st.error(f"Error after fixing: {message}")
+                        st.session_state.last_error = message
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    with col3:
+        if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.last_code = None
+            st.session_state.last_error = None
+            st.experimental_rerun()
+
+    with col4:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+            st.experimental_rerun()
+
+    with col5:
+        if st.button("🔄 Reset All", key="reset_all"):
+            st.session_state.messages = []
+            st.session_state.last_error = None
+            st.session_state.last_code = None
+            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+            st.experimental_rerun()
+
     st.markdown('</div>', unsafe_allow_html=True)
 
     if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
-
         # Process with GPT-4
         if api_key:
             with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
+                response = chat_with_gpt(prompt, api_key, st.session_state.messages)
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 display_chat_message("assistant", response)
                 
