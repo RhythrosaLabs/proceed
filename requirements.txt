@@ -10,3 +10,4 @@ networkx
 seaborn
 altair
 streamlit_lottie
+streamlit_ace
