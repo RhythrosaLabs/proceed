@@ -38,7 +38,7 @@ st.markdown("""
     .chat-message.user {
         background-color: rgba(255, 255, 255, 0.1);
     }
-    .chat-message.bot {
+    .chat-message.assistant {
         background-color: rgba(0, 0, 0, 0.1);
     }
     .chat-message .avatar {
@@ -53,6 +53,20 @@ st.markdown("""
     .chat-message .message {
         width: 80%;
         padding: 0 1.5rem;
+    }
+    .floating-button {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+    }
+    .code-block {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .code-block pre {
+        margin-bottom: 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -93,7 +107,17 @@ def chat_with_gpt(prompt, api_key):
 # Function to display chat messages
 def display_chat_message(role, content):
     with st.chat_message(role):
-        st.markdown(content)
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
 
 # Main function to run the Streamlit app
 def main():
@@ -102,52 +126,33 @@ def main():
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. How can I help you today?"})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations."})
 
     # Sidebar for API key input
     with st.sidebar:
         st.header("Settings")
         api_key = st.text_input("Enter your OpenAI API Key", type="password")
         st.markdown("---")
-        st.markdown("### How to use:")
-        st.markdown("1. Enter your OpenAI API key")
-        st.markdown("2. Chat with the AI about coding tasks")
-        st.markdown("3. Use '/code' to switch to code mode")
-        st.markdown("4. Use '/run' to execute the code")
-        st.markdown("5. Use '/clear' to start a new conversation")
+        st.markdown("### Quick Tips:")
+        st.markdown("1. Chat naturally about coding tasks")
+        st.markdown("2. Request code samples or explanations")
+        st.markdown("3. Click 'Run Code' to execute any code block")
+        st.markdown("4. Use 'Clear Chat' to start over")
 
     # Display chat messages
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
     # Chat input
-    prompt = st.chat_input("What's on your mind?")
+    prompt = st.chat_input("Ask me anything about coding...")
 
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
-
-        if prompt.lower() == "/clear":
-            st.session_state.messages = []
-            st.experimental_rerun()
-
-        elif prompt.lower() == "/code":
-            # Switch to code mode
-            code = st_ace(
-                value="# Enter your Python code here\n",
-                language="python",
-                theme="monokai",
-                height=300
-            )
-            st.session_state.messages.append({"role": "assistant", "content": "Here's a code editor for you. Type your code and use '/run' to execute it."})
-            display_chat_message("assistant", "Here's a code editor for you. Type your code and use '/run' to execute it.")
-
-        elif prompt.lower() == "/run":
-            # Execute the last code block
-            last_code_block = next((msg["content"] for msg in reversed(st.session_state.messages) if msg["role"] == "user" and msg["content"].startswith("```python") and msg["content"].endswith("```")), None)
+    # Floating action buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🏃‍♂️ Run Code", key="run_code"):
+            last_code_block = next((msg["content"] for msg in reversed(st.session_state.messages) if msg["role"] == "assistant" and "```python" in msg["content"]), None)
             if last_code_block:
-                code_to_run = last_code_block.strip("```python").strip()
+                code_to_run = last_code_block.split("```python")[1].split("```")[0].strip()
                 with st.spinner("Executing code..."):
                     try:
                         result = execute_code(code_to_run)
@@ -162,18 +167,26 @@ def main():
                         st.session_state.messages.append({"role": "assistant", "content": error_msg})
                         display_chat_message("assistant", error_msg)
             else:
-                st.session_state.messages.append({"role": "assistant", "content": "No code block found to execute. Please enter a code block first."})
-                display_chat_message("assistant", "No code block found to execute. Please enter a code block first.")
+                st.warning("No code block found to execute. Please request a code sample first.")
 
+    with col2:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.experimental_rerun()
+
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        # Process with GPT-4
+        if api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, api_key)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                display_chat_message("assistant", response)
         else:
-            # Process with GPT-4
-            if api_key:
-                with st.spinner("Thinking..."):
-                    response = chat_with_gpt(prompt, api_key)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    display_chat_message("assistant", response)
-            else:
-                st.warning("Please enter a valid OpenAI API key in the sidebar.")
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
 # Entry point
 if __name__ == "__main__":
