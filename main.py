@@ -1,3 +1,4 @@
+# Optimized Advanced Coding Assistant
 import streamlit as st
 import requests
 import plotly.express as px
@@ -24,106 +25,90 @@ import soundfile as sf
 import sox
 import os
 
-# Custom CSS
-st.markdown("""
-<style>
-    .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        font-weight: bold;
-        border-radius: 20px;
-        border: none;
-        padding: 10px 20px;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white;
-        border-radius: 10px;
-    }
-    .chat-message {
-        padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
-    }
-    .chat-message.user {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-    .chat-message.assistant {
-        background-color: rgba(0, 0, 0, 0.1);
-    }
-    .chat-message .avatar {
-        width: 20%;
-    }
-    .chat-message .avatar img {
-        max-width: 78px;
-        max-height: 78px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-    .chat-message .message {
-        width: 80%;
-        padding: 0 1.5rem;
-    }
-    .floating-button {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-    }
-    .code-block {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-    }
-    .code-block pre {
-        margin-bottom: 0;
-    }
-    .error-message {
-        background-color: rgba(255, 0, 0, 0.1);
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-    }
-    .fix-button {
-        background-color: #FFA500;
-        color: white;
-        font-weight: bold;
-        border-radius: 20px;
-        border: none;
-        padding: 5px 10px;
-        transition: all 0.3s ease;
-    }
-    .fix-button:hover {
-        background-color: #FF8C00;
-        transform: scale(1.05);
-    }
-    .code-execution-area {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
-        padding: 15px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Set page configuration
+st.set_page_config(
+    page_title="Advanced Coding Assistant",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-# Function to load Lottie animation
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
+# Custom CSS for improved UI
+st.markdown("""
+    <style>
+        /* General settings */
+        body {
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+        /* Remove Streamlit branding */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        /* Chat messages */
+        .chat-message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+        }
+        .chat-message.user {
+            background-color: #2e2e2e;
+        }
+        .chat-message.assistant {
+            background-color: #3e3e3e;
+        }
+        .chat-message .avatar {
+            width: 10%;
+        }
+        .chat-message .avatar img {
+            max-width: 50px;
+            max-height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .chat-message .message {
+            width: 90%;
+            padding-left: 1rem;
+        }
+        /* Buttons */
+        .stButton>button {
+            background-color: #6c63ff;
+            color: white;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            margin-right: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            background-color: #5753c9;
+        }
+        /* Input fields */
+        .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+            background-color: #2e2e2e;
+            color: white;
+            border-radius: 10px;
+        }
+        /* Code execution area */
+        .code-execution-area {
+            background-color: #2e2e2e;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #5753c9;
+            border-radius: 10px;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # Function to execute user-provided code
 def execute_code(code):
-    # Create a dictionary of local variables that includes all imported libraries
     local_vars = {
         'st': st,
         'px': px,
@@ -150,31 +135,14 @@ def execute_code(code):
         'load_file': load_file,
         'list_files': list_files
     }
-    
-    # Execute the code
     exec(code, globals(), local_vars)
-    
-    # Check if there's a matplotlib figure to display
     if 'plt' in local_vars and plt.get_fignums():
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
         st.image(buf, use_column_width=True)
         plt.close()
-    
-    # Check if there's a pygame surface to display
-    if 'pygame' in local_vars and pygame.get_init():
-        surface = pygame.display.get_surface()
-        if surface:
-            pygame_surface_to_image(surface)
-    
     return local_vars
-
-# Function to convert Pygame surface to Streamlit image
-def pygame_surface_to_image(surface):
-    buffer = surface.get_view("RGB")
-    img = Image.frombytes("RGB", surface.get_size(), buffer.raw)
-    st.image(img, caption="Pygame Output", use_column_width=True)
 
 # Functions for file system management
 def save_file(filename, content):
@@ -197,7 +165,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4o",
+        "model": "gpt-4",
         "messages": messages,
         "max_tokens": 2500
     }
@@ -211,18 +179,10 @@ def chat_with_gpt(prompt, api_key, conversation_history):
 
 # Function to display chat messages
 def display_chat_message(role, content):
-    with st.chat_message(role):
-        if role == "user":
-            st.markdown(content)
-        else:
-            if "```python" in content:
-                parts = content.split("```python")
-                st.markdown(parts[0])
-                st.code(parts[1].split("```")[0], language="python")
-                if len(parts) > 2:
-                    st.markdown(parts[2])
-            else:
-                st.markdown(content)
+    if role == "user":
+        st.markdown(f'<div class="chat-message user"><div class="message">{content}</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="chat-message assistant"><div class="message">{content}</div></div>', unsafe_allow_html=True)
 
 # Function to fix code
 def fix_code(code, error_message, api_key):
@@ -233,11 +193,11 @@ def fix_code(code, error_message, api_key):
 # Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
-    
+
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and audio processing."})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today?"})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -249,39 +209,41 @@ def main():
 
     # Sidebar for API key input and library information
     with st.sidebar:
-        st.header("Settings")
-        openai_api_key = st.text_input("Enter your OpenAI API Key", type="password")
+        st.header("🔑 Settings")
+        openai_api_key = st.text_input("Enter your OpenAI API Key", type="password", help="Your API key is needed to communicate with OpenAI's GPT-4 model.")
         st.markdown("---")
+        st.subheader("📚 Available Libraries and Features:")
+        st.markdown("""
+        - **Plotting:** matplotlib, seaborn, plotly, altair
+        - **Data:** pandas, numpy
+        - **Geospatial:** pydeck
+        - **Audio:** librosa, pedalboard, mido, soundfile, sox
+        - **Image:** PIL, cv2
+        - **Game Development:** pygame
+        - **File System:** save_file, load_file, list_files
+        - **Others:** io, base64
+        """)
         st.markdown("---")
-        st.markdown("### Available Libraries and Features:")
-        st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
-        st.markdown("- Data: pandas, numpy")
-        st.markdown("- Geospatial: pydeck")
-        st.markdown("- Audio: librosa, pedalboard, mido, soundfile, sox")
-        st.markdown("- Image: PIL, cv2")
-        st.markdown("- Game Dev: pygame")
-        st.markdown("- File System: save_file, load_file, list_files")
-        st.markdown("- Others: io, base64")
+        st.caption("Note: Your API key is stored securely in the app session and not shared.")
 
     # Display chat messages
+    st.markdown("### 💬 Chat History")
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
     # Code execution area
-    st.markdown("### Code Execution Area")
-    with st.container():
+    st.markdown("### 📝 Code Execution Area")
+    with st.expander("View/Hide Code Execution Area", expanded=True):
         st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
-        
-        # Display the current code
         if st.session_state.last_code:
             st.code(st.session_state.last_code, language="python")
         else:
             st.info("No code to display. Request a code sample or write some code to get started!")
-            st.markdown("Here's an example to try:")
             example_code = """
 # Example: Create an interactive scatter plot with Plotly
 import plotly.express as px
 import numpy as np
+import pandas as pd
 
 # Generate some random data
 np.random.seed(42)
@@ -306,16 +268,17 @@ st.write("Data saved to 'scatter_data.csv'")
             st.code(example_code, language="python")
             if st.button("Try This Example"):
                 st.session_state.last_code = example_code
-
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
-    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+    st.markdown("### ✍️ Your Input")
+    prompt = st.text_input("Ask me anything about coding or request a visualization...")
 
     # Action buttons
-    col1, col2, col3, col4, col5 = st.columns(5)
+    st.markdown("### 🔧 Actions")
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        if st.button("🏃‍♂️ Run Code", key="run_code"):
+        if st.button("🏃‍♂️ Run Code"):
             if st.session_state.last_code:
                 with st.spinner("Executing code..."):
                     try:
@@ -328,32 +291,26 @@ st.write("Data saved to 'scatter_data.csv'")
                         st.session_state.last_error = str(e)
             else:
                 st.warning("No code to execute. Please request a code sample first.")
-
     with col2:
-        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+        if st.button("🔧 Fix Code"):
             if st.session_state.last_error and st.session_state.last_code:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
-                    st.session_state.last_code = fixed_code
+                if openai_api_key:
+                    with st.spinner("Fixing code..."):
+                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
+                        st.session_state.last_code = fixed_code
+                        st.success("Code has been fixed. Please rerun.")
+                else:
+                    st.warning("Please enter your OpenAI API key in the sidebar.")
             else:
                 st.warning("No error to fix or no previous code execution. Please run some code first.")
-
     with col3:
-        if st.button("🧹 Clear Code", key="clear_code"):
+        if st.button("🧹 Clear Code"):
             st.session_state.last_code = None
             st.session_state.last_error = None
-
     with col4:
-        if st.button("🧹 Clear Chat", key="clear_chat"):
+        if st.button("🗑️ Clear Chat"):
             st.session_state.messages = []
             st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-
-    with col5:
-        if st.button("🔄 Reset All", key="reset_all"):
-            st.session_state.messages = []
-            st.session_state.last_error = None
-            st.session_state.last_code = None
-            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
 
     if prompt:
         # Add user message to chat history
@@ -366,7 +323,7 @@ st.write("Data saved to 'scatter_data.csv'")
                 response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 display_chat_message("assistant", response)
-                
+
                 # Update last_code if the response contains a code block
                 if "```python" in response:
                     st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
@@ -374,13 +331,13 @@ st.write("Data saved to 'scatter_data.csv'")
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
     # Display generated files
-    st.markdown("### Generated Files")
+    st.markdown("### 📁 Generated Files")
     files = list_files()
     if files:
         for file in files:
             if st.button(f"View {file}"):
                 content = load_file(file)
-                st.text_area("File Content", content, height=200)
+                st.text_area(f"Contents of {file}", content, height=200)
     else:
         st.info("No generated files yet.")
 
