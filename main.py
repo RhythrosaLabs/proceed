@@ -25,7 +25,7 @@ import soundfile as sf
 import sox
 import os
 import time
-import javascript
+from streamlit_javascript import st_javascript
 
 # Set page configuration
 st.set_page_config(
