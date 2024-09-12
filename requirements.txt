@@ -30,3 +30,4 @@ astor
 black
 bokeh
 streamlit-bokeh-events
+streamlit-javascript
