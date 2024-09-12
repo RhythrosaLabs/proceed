@@ -480,7 +480,7 @@ st.write("Data saved as 'scatter_data.csv'")
             if st.button("Try This Example"):
                 st.session_state.code_editor = example_code
                 st.session_state.last_code = example_code
-                st.experimental_rerun()
+                st.rerun()  # Changed from st.experimental_rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -545,7 +545,7 @@ st.write("Data saved as 'scatter_data.csv'")
                     else:
                         st.error(f"Error after fixing: {message}")
                         st.session_state.last_error = message
-                    st.experimental_rerun()
+                    st.rerun()  # Changed from st.experimental_rerun()
             else:
                 st.warning("No error to fix or no previous code execution. Please run some code first.")
 
@@ -554,13 +554,13 @@ st.write("Data saved as 'scatter_data.csv'")
             st.session_state.code_editor = ""
             st.session_state.last_code = None
             st.session_state.last_error = None
-            st.experimental_rerun()
+            st.rerun()  # Changed from st.experimental_rerun()
 
     with col4:
         if st.button("🧹 Clear Chat", key="clear_chat"):
             st.session_state.messages = []
             st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-            st.experimental_rerun()
+            st.rerun()  # Changed from st.experimental_rerun()
 
     with col5:
         if st.button("🔄 Reset All", key="reset_all"):
@@ -569,7 +569,7 @@ st.write("Data saved as 'scatter_data.csv'")
             st.session_state.last_code = None
             st.session_state.code_editor = ""
             st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-            st.experimental_rerun()
+            st.rerun()  # Changed from st.experimental_rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -586,7 +586,7 @@ st.write("Data saved as 'scatter_data.csv'")
                     code_block = response.split("```python")[1].split("```")[0].strip()
                     st.session_state.code_editor = code_block
                     st.session_state.last_code = code_block
-                    st.experimental_rerun()
+                    st.rerun()  # Changed from st.experimental_rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
