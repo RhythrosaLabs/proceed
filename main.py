@@ -176,7 +176,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Function to clear the generated files directory
+
+# Function to load Lottie animation
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+    
 def clear_generated_files():
     folder = "generated_files"
     for filename in os.listdir(folder):
@@ -184,7 +191,10 @@ def clear_generated_files():
         if os.path.isfile(file_path):
             os.unlink(file_path)
 
+
 # Updated function to execute user-provided code
+# Function to execute user-provided code
+# Function to execute user-provided code
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
@@ -288,11 +298,13 @@ def display_generated_file(filepath):
             html_string = f.read()
         st.components.v1.html(html_string, height=600)
     else:
+        # Display plain text or other non-media files
         with open(filepath, 'r') as f:
             content = f.read()
         st.text(content)
 
 # Function to display all generated files with download options
+# Display generated files only if they exist
 def display_generated_files():
     files = list_files()
     if files:
@@ -307,14 +319,114 @@ def display_generated_files():
                     data=f,
                     file_name=file,
                     mime="application/octet-stream",
-                    key=f"download_button_{i}"
+                    key=f"download_button_{i}"  # Unique key for each button
                 )
     else:
         st.info("No generated files yet.")
 
+
+
+def capture_widget_states(local_vars):
+    widget_states = {}
+    for name, value in local_vars.items():
+        if name.startswith('st_'):
+            if hasattr(value, 'value'):
+                widget_states[name] = value.value
+    return widget_states
+
+def restore_widget_states(widget_states):
+    for name, value in widget_states.items():
+        if name in st.session_state:
+            st.session_state[name] = value
+
+def get_streamlit_widgets():
+    return [name for name, func in inspect.getmembers(st) 
+            if inspect.isfunction(func) and name.startswith('slider') or name.startswith('text_input') or name.startswith('checkbox')]
+
+def get_code_suggestions(current_line):
+    suggestions = []
+    
+    if 'st.' in current_line:
+        widget_funcs = get_streamlit_widgets()
+        suggestions.extend([func for func in widget_funcs if func.startswith(current_line.split('.')[-1])])
+    
+    return suggestions
+
+def display_chat_message(role, content):
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
+
+# Function to convert Pygame surface to PIL Image
+def pygame_surface_to_image(surface):
+    buffer = surface.get_view("RGB")
+    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
+
+
+# New functions to save various outputs
+def save_plot(fig, filename):
+    fig.savefig(f"generated_files/{filename}")
+
+def save_plotly(fig, filename):
+    fig.write_html(f"generated_files/{filename}")
+
+
+# Function to call GPT-4 via requests (unchanged)
+def chat_with_gpt(prompt, api_key, conversation_history):
+    api_url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    messages = conversation_history + [{"role": "user", "content": prompt}]
+    data = {
+        "model": "gpt-4o-mini",
+        "messages": messages,
+        "max_tokens": 2000
+    }
+    try:
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+        return result['choices'][0]['message']['content']
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# Function to display chat messages (unchanged)
+def display_chat_message(role, content):
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
+
+# Function to fix code (unchanged)
+def fix_code(code, error_message, api_key):
+    prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
+    fixed_code = chat_with_gpt(prompt, api_key, [])
+    return fixed_code
+
 def main():
     st.title("🚀 Advanced Coding Assistant")
-    
+    # At the beginning of main()
+    clear_generated_files()
+
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
@@ -326,8 +438,9 @@ def main():
     if 'code_editor' not in st.session_state:
         st.session_state.code_editor = ""
 
-    # Clear generated files on start
-    clear_generated_files()
+    # Create directory for generated files if it doesn't exist
+    if not os.path.exists("generated_files"):
+        os.makedirs("generated_files")
 
     # Sidebar for API key input
     with st.sidebar:
@@ -387,7 +500,23 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Display generated files
-    display_generated_files()
+    st.markdown("### Generated Files")
+    files = list_files()
+    if files:
+        for i, file in enumerate(files):
+            filepath = f"generated_files/{file}"
+            with st.expander(f"View {file}", expanded=False):
+                display_generated_file(filepath)
+            with open(filepath, "rb") as f:
+                st.download_button(
+                    label=f"Download {file}",
+                    data=f,
+                    file_name=file,
+                    mime="application/octet-stream",
+                    key=f"download_button_{i}"  # Unique key for each button
+                )
+    else:
+        st.info("No generated files yet.")
 
     # Chat input (remains at the bottom)
     prompt = st.chat_input("Ask me anything about coding or request a visualization...", key="chat_input")
