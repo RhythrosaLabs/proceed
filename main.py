@@ -368,6 +368,8 @@ def main():
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
         st.session_state.last_code = None
+    if 'code_editor' not in st.session_state:
+        st.session_state.code_editor = ""
 
     # Create directory for generated files if it doesn't exist
     if not os.path.exists("generated_files"):
@@ -402,11 +404,34 @@ def main():
     with st.container():
         st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
         
-        # Display the current code
-        if st.session_state.last_code:
-            st.code(st.session_state.last_code, language="python")
-        else:
-            st.info("No code to display. Request a code sample or write some code to get started!")
+        # Custom code editor with syntax highlighting and suggestions
+        code_editor = st_ace(
+            value=st.session_state.code_editor,
+            language="python",
+            theme="monokai",
+            keybinding="vscode",
+            show_gutter=True,
+            show_print_margin=True,
+            wrap=True,
+            auto_update=True,
+            font_size=14,
+            tab_size=4,
+            placeholder="Write your Python code here...",
+            key="ace_editor"
+        )
+
+        # Update session state with current code
+        st.session_state.code_editor = code_editor
+        st.session_state.last_code = code_editor
+
+        # Provide code suggestions
+        current_line = code_editor.split('\n')[-1] if code_editor else ""
+        suggestions = get_code_suggestions(current_line)
+        if suggestions:
+            st.write("Suggestions:", ", ".join(suggestions))
+
+        if not st.session_state.last_code:
+            st.info("No code to display. Write some code or try the example below!")
             st.markdown("Here's an example to try:")
             example_code = """
 # Example: Create a scatter plot with Plotly and save it
@@ -439,6 +464,7 @@ st.write("Data saved as 'scatter_data.csv'")
 """
             st.code(example_code, language="python")
             if st.button("Try This Example"):
+                st.session_state.code_editor = example_code
                 st.session_state.last_code = example_code
                 st.experimental_rerun()
 
@@ -486,15 +512,17 @@ st.write("Data saved as 'scatter_data.csv'")
                         st.success(message)
                         st.session_state.last_error = None
                     else:
+                        st.error(message)
                         st.session_state.last_error = message
             else:
-                st.warning("No code to execute. Please request a code sample first.")
+                st.warning("No code to execute. Please write some code first.")
 
     with col2:
         if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
             if st.session_state.last_error and st.session_state.last_code:
                 with st.spinner("Fixing code..."):
                     fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                    st.session_state.code_editor = fixed_code
                     st.session_state.last_code = fixed_code
                     success, message = execute_code(fixed_code)
                     if success:
@@ -503,11 +531,13 @@ st.write("Data saved as 'scatter_data.csv'")
                     else:
                         st.error(f"Error after fixing: {message}")
                         st.session_state.last_error = message
+                    st.experimental_rerun()
             else:
                 st.warning("No error to fix or no previous code execution. Please run some code first.")
 
     with col3:
         if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.code_editor = ""
             st.session_state.last_code = None
             st.session_state.last_error = None
             st.experimental_rerun()
@@ -523,6 +553,7 @@ st.write("Data saved as 'scatter_data.csv'")
             st.session_state.messages = []
             st.session_state.last_error = None
             st.session_state.last_code = None
+            st.session_state.code_editor = ""
             st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
             st.experimental_rerun()
 
@@ -538,7 +569,9 @@ st.write("Data saved as 'scatter_data.csv'")
                 
                 # Update last_code if the response contains a code block
                 if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+                    code_block = response.split("```python")[1].split("```")[0].strip()
+                    st.session_state.code_editor = code_block
+                    st.session_state.last_code = code_block
                     st.experimental_rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
