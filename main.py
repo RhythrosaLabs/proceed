@@ -1,4 +1,4 @@
-# Optimized Advanced Coding Assistant
+# Supercharged Advanced Coding Assistant
 import streamlit as st
 import requests
 import plotly.express as px
@@ -24,10 +24,11 @@ import pygame
 import soundfile as sf
 import sox
 import os
+import time
 
 # Set page configuration
 st.set_page_config(
-    page_title="Advanced Coding Assistant",
+    page_title="Supercharged Coding Assistant",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -38,31 +39,34 @@ st.markdown("""
     <style>
         /* General settings */
         body {
-            background-color: #1e1e1e;
-            color: #ffffff;
+            background-color: #0e1117;
+            color: #c9d1d9;
         }
         /* Remove Streamlit branding */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
+        header {visibility: hidden;}
         /* Chat messages */
         .chat-message {
             padding: 1rem;
             border-radius: 0.5rem;
             margin-bottom: 1rem;
             display: flex;
+            flex-direction: row;
+            align-items: flex-start;
         }
         .chat-message.user {
-            background-color: #2e2e2e;
+            background-color: #161b22;
         }
         .chat-message.assistant {
-            background-color: #3e3e3e;
+            background-color: #21262d;
         }
         .chat-message .avatar {
             width: 10%;
         }
         .chat-message .avatar img {
-            max-width: 50px;
-            max-height: 50px;
+            max-width: 40px;
+            max-height: 40px;
             border-radius: 50%;
             object-fit: cover;
         }
@@ -72,26 +76,26 @@ st.markdown("""
         }
         /* Buttons */
         .stButton>button {
-            background-color: #6c63ff;
+            background-color: #238636;
             color: white;
-            border-radius: 10px;
+            border-radius: 5px;
             padding: 0.5rem 1rem;
-            margin-right: 0.5rem;
-            transition: all 0.3s ease;
+            margin: 0.5rem 0.25rem 0.5rem 0;
+            transition: all 0.2s ease-in-out;
         }
         .stButton>button:hover {
-            background-color: #5753c9;
+            background-color: #2ea043;
         }
         /* Input fields */
         .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-            background-color: #2e2e2e;
-            color: white;
-            border-radius: 10px;
+            background-color: #161b22;
+            color: #c9d1d9;
+            border-radius: 5px;
         }
         /* Code execution area */
         .code-execution-area {
-            background-color: #2e2e2e;
-            border-radius: 10px;
+            background-color: #161b22;
+            border-radius: 5px;
             padding: 1rem;
             margin-top: 1rem;
             margin-bottom: 1rem;
@@ -101,8 +105,34 @@ st.markdown("""
             width: 8px;
         }
         ::-webkit-scrollbar-thumb {
-            background-color: #5753c9;
-            border-radius: 10px;
+            background-color: #484f58;
+            border-radius: 5px;
+        }
+        /* File explorer */
+        .file-explorer {
+            background-color: #21262d;
+            padding: 1rem;
+            border-radius: 5px;
+        }
+        /* Syntax highlighting */
+        .ace_editor {
+            background: #0e1117;
+        }
+        .ace_gutter {
+            background: #0e1117;
+            color: #6e7681;
+        }
+        .ace_keyword {
+            color: #ff7b72;
+        }
+        .ace_string {
+            color: #a5d6ff;
+        }
+        .ace_comment {
+            color: #8b949e;
+        }
+        .ace_identifier {
+            color: #d2a8ff;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -133,16 +163,15 @@ def execute_code(code):
         'sox': sox,
         'save_file': save_file,
         'load_file': load_file,
-        'list_files': list_files
+        'list_files': list_files,
+        'uploaded_file': st.session_state.get('uploaded_file', None),
     }
-    exec(code, globals(), local_vars)
-    if 'plt' in local_vars and plt.get_fignums():
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
-        st.image(buf, use_column_width=True)
-        plt.close()
-    return local_vars
+    try:
+        exec(code, globals(), local_vars)
+        st.success("Code executed successfully.")
+    except Exception as e:
+        st.error(f"Error executing code: {str(e)}")
+        st.session_state.last_error = str(e)
 
 # Functions for file system management
 def save_file(filename, content):
@@ -165,9 +194,10 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4",
+        "model": st.session_state.selected_model,
         "messages": messages,
-        "max_tokens": 2500
+        "max_tokens": 2500,
+        "temperature": st.session_state.temperature,
     }
     try:
         response = requests.post(api_url, headers=headers, json=data)
@@ -192,25 +222,41 @@ def fix_code(code, error_message, api_key):
 
 # Main function to run the Streamlit app
 def main():
-    st.title("🚀 Advanced Coding Assistant")
+    st.title("🚀 Supercharged Coding Assistant")
 
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today?"})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your supercharged coding assistant. How can I help you today?"})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
-        st.session_state.last_code = None
+        st.session_state.last_code = ""
+    if 'uploaded_file' not in st.session_state:
+        st.session_state.uploaded_file = None
+    if 'selected_model' not in st.session_state:
+        st.session_state.selected_model = "gpt-4"
+    if 'temperature' not in st.session_state:
+        st.session_state.temperature = 0.7
 
     # Create directory for generated files if it doesn't exist
     if not os.path.exists("generated_files"):
         os.makedirs("generated_files")
 
-    # Sidebar for API key input and library information
+    # Sidebar for settings and additional features
     with st.sidebar:
         st.header("🔑 Settings")
         openai_api_key = st.text_input("Enter your OpenAI API Key", type="password", help="Your API key is needed to communicate with OpenAI's GPT-4 model.")
+        st.selectbox("Select Model", ["gpt-4", "gpt-3.5-turbo"], key='selected_model')
+        st.slider("Set Temperature", min_value=0.0, max_value=1.0, value=0.7, key='temperature', help="Controls the creativity of the AI's responses.")
+        st.markdown("---")
+        st.subheader("📁 File Management")
+        uploaded_file = st.file_uploader("Upload a file", type=["py", "txt", "csv", "json", "jpg", "png", "wav"])
+        if uploaded_file is not None:
+            st.session_state.uploaded_file = uploaded_file
+            with open(os.path.join("generated_files", uploaded_file.name), "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"File '{uploaded_file.name}' uploaded successfully.")
         st.markdown("---")
         st.subheader("📚 Available Libraries and Features:")
         st.markdown("""
@@ -231,43 +277,23 @@ def main():
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
-    # Code execution area
+    # Code execution area with code editor
     st.markdown("### 📝 Code Execution Area")
     with st.expander("View/Hide Code Execution Area", expanded=True):
         st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
-        if st.session_state.last_code:
-            st.code(st.session_state.last_code, language="python")
-        else:
-            st.info("No code to display. Request a code sample or write some code to get started!")
-            example_code = """
-# Example: Create an interactive scatter plot with Plotly
-import plotly.express as px
-import numpy as np
-import pandas as pd
-
-# Generate some random data
-np.random.seed(42)
-data = pd.DataFrame({
-    'x': np.random.randn(100),
-    'y': np.random.randn(100),
-    'size': np.random.randint(1, 20, 100)
-})
-
-# Create a scatter plot
-fig = px.scatter(data, x='x', y='y', size='size', color='size',
-                 title='Interactive Scatter Plot')
-fig.update_layout(template='plotly_dark')
-
-# Display the plot
-st.plotly_chart(fig)
-
-# Save the data
-data.to_csv('generated_files/scatter_data.csv', index=False)
-st.write("Data saved to 'scatter_data.csv'")
-"""
-            st.code(example_code, language="python")
-            if st.button("Try This Example"):
-                st.session_state.last_code = example_code
+        code_editor = st_ace(
+            value=st.session_state.last_code,
+            language='python',
+            theme='pastel_on_dark',
+            keybinding='vscode',
+            font_size=14,
+            tab_size=4,
+            wrap=True,
+            auto_update=True,
+            readonly=False,
+            key="ace_code_editor"
+        )
+        st.session_state.last_code = code_editor
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Chat input
@@ -276,24 +302,17 @@ st.write("Data saved to 'scatter_data.csv'")
 
     # Action buttons
     st.markdown("### 🔧 Actions")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("🏃‍♂️ Run Code"):
-            if st.session_state.last_code:
+            if st.session_state.last_code.strip() != "":
                 with st.spinner("Executing code..."):
-                    try:
-                        result = execute_code(st.session_state.last_code)
-                        st.success("Code executed successfully.")
-                        st.session_state.last_error = None
-                    except Exception as e:
-                        error_msg = f"Error executing code: {str(e)}"
-                        st.error(error_msg)
-                        st.session_state.last_error = str(e)
+                    execute_code(st.session_state.last_code)
             else:
-                st.warning("No code to execute. Please request a code sample first.")
+                st.warning("No code to execute. Please write or request some code first.")
     with col2:
         if st.button("🔧 Fix Code"):
-            if st.session_state.last_error and st.session_state.last_code:
+            if st.session_state.last_error and st.session_state.last_code.strip() != "":
                 if openai_api_key:
                     with st.spinner("Fixing code..."):
                         fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
@@ -304,10 +323,18 @@ st.write("Data saved to 'scatter_data.csv'")
             else:
                 st.warning("No error to fix or no previous code execution. Please run some code first.")
     with col3:
-        if st.button("🧹 Clear Code"):
-            st.session_state.last_code = None
-            st.session_state.last_error = None
+        if st.button("💾 Save Code"):
+            if st.session_state.last_code.strip() != "":
+                save_file_name = st.text_input("Enter filename to save code:", value="my_code.py")
+                save_file(save_file_name, st.session_state.last_code)
+                st.success(f"Code saved as '{save_file_name}' in 'generated_files' directory.")
+            else:
+                st.warning("No code to save.")
     with col4:
+        if st.button("🧹 Clear Code"):
+            st.session_state.last_code = ""
+            st.session_state.last_error = None
+    with col5:
         if st.button("🗑️ Clear Chat"):
             st.session_state.messages = []
             st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
@@ -330,14 +357,25 @@ st.write("Data saved to 'scatter_data.csv'")
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
-    # Display generated files
+    # Display generated files with file explorer
     st.markdown("### 📁 Generated Files")
     files = list_files()
     if files:
-        for file in files:
-            if st.button(f"View {file}"):
-                content = load_file(file)
-                st.text_area(f"Contents of {file}", content, height=200)
+        st.markdown('<div class="file-explorer">', unsafe_allow_html=True)
+        selected_file = st.selectbox("Select a file to view:", files)
+        if selected_file:
+            file_path = os.path.join("generated_files", selected_file)
+            if selected_file.endswith(('.png', '.jpg', '.jpeg')):
+                image = Image.open(file_path)
+                st.image(image, caption=selected_file)
+            elif selected_file.endswith(('.wav', '.mp3')):
+                audio_file = open(file_path, 'rb')
+                audio_bytes = audio_file.read()
+                st.audio(audio_bytes, format='audio/wav')
+            else:
+                content = load_file(selected_file)
+                st.text_area(f"Contents of {selected_file}", content, height=200)
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No generated files yet.")
 
