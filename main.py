@@ -489,7 +489,6 @@ def main():
                     code_block = response.split("```python")[1].split("```")[0].strip()
                     st.session_state.code_editor = code_block
                     st.session_state.last_code = code_block
-                    st.experimental_rerun()
         else:
             st.warning("Please enter your OpenAI API key.")
 
@@ -511,7 +510,6 @@ def main():
                 fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
                 st.session_state.code_editor = fixed_code
                 st.session_state.last_code = fixed_code
-                st.experimental_rerun()
 
     # Display generated files if any
     display_generated_files()
