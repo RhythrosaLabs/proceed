@@ -3,8 +3,6 @@ import requests
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from streamlit_lottie import st_lottie
-from streamlit_ace import st_ace
 import matplotlib.pyplot as plt
 import seaborn as sns
 import altair as alt
@@ -22,13 +20,18 @@ import multiprocessing
 import time
 import psutil
 import traceback
-import inspect
+import json
+import re
+import uuid
 
-# Custom CSS with improved styling
+# Set page config for a wider layout
+st.set_page_config(layout="wide", page_title="Advanced Coding Assistant", page_icon="🚀")
+
+# Custom CSS for a more appealing UI
 st.markdown("""
 <style>
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         color: white;
     }
     .stButton>button {
@@ -65,68 +68,30 @@ st.markdown("""
         width: 80%;
         padding: 0 1.5rem;
     }
-    .code-block {
-        background-color: rgba(0, 0, 0, 0.2);
+    .code-editor {
         border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-    }
-    .code-execution-area {
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 10px;
-        padding: 15px;
-        margin-top: 20px;
-        margin-bottom: 20px;
+        margin-bottom: 1rem;
     }
     .file-display {
-        border: 1px solid #ccc;
+        border: 1px solid #4CAF50;
         border-radius: 10px;
-        margin: 5px 0;
-        padding: 15px;
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-    .bottom-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: rgba(49, 51, 63, 0.9);
-        padding: 10px;
-        z-index: 999;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-    }
-    .bottom-bar .stButton > button {
-        height: 2.5rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    .main .block-container {
-        padding-bottom: 5rem;
-    }
-    .stChatInputContainer {
-        position: fixed;
-        bottom: 4rem;
-        left: 0;
-        right: 0;
         padding: 1rem;
-        background-color: rgba(49, 51, 63, 0.9);
-        z-index: 998;
+        margin-bottom: 1rem;
+        background-color: rgba(0, 0, 0, 0.2);
     }
-    .stChatInputContainer > div {
-        margin-bottom: 0 !important;
+    .sidebar .stButton>button {
+        width: 100%;
     }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    .hljs {
+        background: transparent !important;
+    }
+    .st-emotion-cache-16txtl3 {
+        padding-top: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Helper functions
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    return r.json() if r.status_code == 200 else None
-
 def ensure_directory_exists():
     os.makedirs("generated_files", exist_ok=True)
 
@@ -136,7 +101,6 @@ def clear_generated_files():
         if os.path.isfile(file_path):
             os.unlink(file_path)
 
-# File management functions
 def save_file(filename, content):
     ensure_directory_exists()
     with open(f"generated_files/{filename}", "w") as f:
@@ -153,12 +117,10 @@ def list_files():
 def save_image(img, filename):
     ensure_directory_exists()
     img.save(f"generated_files/{filename}")
-    display_generated_file(f"generated_files/{filename}")
 
 def save_audio(audio, sample_rate, filename):
     ensure_directory_exists()
     sf.write(f"generated_files/{filename}", audio, sample_rate)
-    display_generated_file(f"generated_files/{filename}")
 
 def save_plot(fig, filename):
     ensure_directory_exists()
@@ -168,58 +130,25 @@ def save_plotly(fig, filename):
     ensure_directory_exists()
     fig.write_html(f"generated_files/{filename}")
 
-# Display functions
-def display_generated_file(filepath):
-    if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-        st.image(filepath, use_column_width=True)
-    elif filepath.endswith(('.wav', '.mp3')):
-        audio_bytes = open(filepath, 'rb').read()
-        st.audio(audio_bytes)
-    elif filepath.endswith('.mp4'):
-        st.video(filepath)
-    elif filepath.endswith('.html'):
-        with open(filepath, 'r') as f:
+def display_file(file_path):
+    _, file_extension = os.path.splitext(file_path)
+    file_extension = file_extension.lower()
+
+    if file_extension in ['.png', '.jpg', '.jpeg', '.gif']:
+        st.image(file_path, use_column_width=True)
+    elif file_extension in ['.wav', '.mp3']:
+        st.audio(file_path)
+    elif file_extension == '.mp4':
+        st.video(file_path)
+    elif file_extension == '.html':
+        with open(file_path, 'r') as f:
             html_string = f.read()
         st.components.v1.html(html_string, height=600)
     else:
-        with open(filepath, 'r') as f:
+        with open(file_path, 'r') as f:
             content = f.read()
-        st.text(content)
+        st.code(content, language='python')
 
-def display_generated_files():
-    files = list_files()
-    if files:
-        st.markdown("### Generated Files")
-        for i, file in enumerate(files):
-            filepath = f"generated_files/{file}"
-            with st.expander(f"View {file}", expanded=False):
-                display_generated_file(filepath)
-            with open(filepath, "rb") as f:
-                st.download_button(
-                    label=f"Download {file}",
-                    data=f,
-                    file_name=file,
-                    mime="application/octet-stream",
-                    key=f"download_button_{i}"
-                )
-    else:
-        st.info("No generated files yet.")
-
-def display_chat_message(role, content):
-    with st.chat_message(role):
-        if role == "user":
-            st.markdown(content)
-        else:
-            if "```python" in content:
-                parts = content.split("```python")
-                st.markdown(parts[0])
-                st.code(parts[1].split("```")[0], language="python")
-                if len(parts) > 2:
-                    st.markdown(parts[2])
-            else:
-                st.markdown(content)
-
-# Code execution function
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
@@ -243,7 +172,6 @@ def execute_code(code, timeout=30):
             'save_audio': save_audio,
             'save_plot': save_plot,
             'save_plotly': save_plotly,
-            'display_generated_file': display_generated_file,
         }
 
         output = io.StringIO()
@@ -285,11 +213,8 @@ def execute_code(code, timeout=30):
         st.text("Print output:")
         st.code(return_dict['output'], language="")
 
-    display_generated_files()
-
     return True, "Code executed successfully."
 
-# GPT-4 interaction function
 def chat_with_gpt(prompt, api_key, conversation_history):
     api_url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -298,7 +223,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4o",
+        "model": "gpt-4",
         "messages": messages,
         "max_tokens": 2000
     }
@@ -310,14 +235,25 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Code fixing function
 def fix_code(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
 
-# Main function
-# New function for session management
+def display_chat_message(role, content):
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
+
 def save_session():
     session_data = {
         "code": st.session_state.code_editor,
@@ -339,30 +275,25 @@ def load_session():
     except FileNotFoundError:
         st.error("No saved session found.")
 
-# New function for code history
 def add_to_history(code):
-    if 'code_history' not in st.session_state:
-        st.session_state.code_history = []
     if code not in st.session_state.code_history:
         st.session_state.code_history.append(code)
-    if len(st.session_state.code_history) > 10:  # Keep only the last 10 entries
+    if len(st.session_state.code_history) > 10:
         st.session_state.code_history.pop(0)
 
-# Main function
 def main():
-    st.title("🚀 Advanced Coding Assistant v2")
+    st.title("🚀 Advanced Coding Assistant v3")
     
-    clear_generated_files()
-
     if 'messages' not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your coding assistant. Ask me anything or request code!"}]
-    if 'last_error' not in st.session_state:
-        st.session_state.last_error = None
+        st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today?"}]
     if 'code_editor' not in st.session_state:
         st.session_state.code_editor = ""
     if 'code_history' not in st.session_state:
         st.session_state.code_history = []
+    if 'last_error' not in st.session_state:
+        st.session_state.last_error = None
 
+    # Sidebar
     with st.sidebar:
         st.header("Settings")
         api_key = st.text_input("Enter your OpenAI API Key", type="password", key="api_key_input")
@@ -370,10 +301,10 @@ def main():
         st.subheader("Session Management")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Save Session"):
+            if st.button("Save Session", key="save_session"):
                 save_session()
         with col2:
-            if st.button("Load Session"):
+            if st.button("Load Session", key="load_session"):
                 load_session()
         
         st.subheader("Code History")
@@ -382,126 +313,98 @@ def main():
                 st.session_state.code_editor = historical_code
                 st.experimental_rerun()
 
-    for message in st.session_state.messages:
-        display_chat_message(message["role"], message["content"])
+    # Main area
+    col1, col2 = st.columns([2, 1])
 
-    st.markdown("### Enhanced Code Editor")
-    code_editor = st_ace(
-        value=st.session_state.code_editor,
-        language="python",
-        theme="monokai",
-        keybinding="vscode",
-        show_gutter=True,
-        show_print_margin=True,
-        wrap=True,
-        auto_update=True,
-        font_size=14,
-        tab_size=4,
-        show_line_numbers=True,
-        key="ace_editor"
-    )
-
-    if code_editor != st.session_state.code_editor:
-        st.session_state.code_editor = code_editor
-        add_to_history(code_editor)
-
-    prompt = st.chat_input("Ask for code or any coding question...", key="chat_input")
-    
-    if prompt:
-        if api_key:
-            with st.spinner("Processing..."):
-                response = chat_with_gpt(prompt, api_key, st.session_state.messages)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
-                
-                if "```python" in response:
-                    code_block = response.split("```python")[1].split("```")[0].strip()
-                    st.session_state.code_editor = code_block
-                    add_to_history(code_block)
-        else:
-            st.warning("Please enter your OpenAI API key.")
-
-    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        if st.button("🏃‍♂️ Run Code"):
-            if st.session_state.code_editor:
-                with st.spinner("Executing code..."):
-                    success, message = execute_code(st.session_state.code_editor)
-                    if success:
-                        st.success(message)
-                    else:
-                        st.error(message)
-                        st.session_state.last_error = message
+        st.subheader("💬 Chat with AI")
+        for message in st.session_state.messages:
+            display_chat_message(message["role"], message["content"])
+
+        prompt = st.chat_input("Ask for code or any coding question...", key="chat_input")
+        
+        if prompt:
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            display_chat_message("user", prompt)
+
+            if api_key:
+                with st.spinner("AI is thinking..."):
+                    response = chat_with_gpt(prompt, api_key, st.session_state.messages[:-1])
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    display_chat_message("assistant", response)
+                    
+                    if "```python" in response:
+                        code_block = response.split("```python")[1].split("```")[0].strip()
+                        st.session_state.code_editor = code_block
+                        add_to_history(code_block)
+                        st.experimental_rerun()
             else:
-                st.warning("Please write some code to execute.")
+                st.warning("Please enter your OpenAI API key in the sidebar.")
 
     with col2:
-        if st.button("🔧 Fix and Rerun"):
-            if st.session_state.last_error and st.session_state.code_editor:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.code_editor, st.session_state.last_error, api_key)
-                    st.session_state.code_editor = fixed_code
-                    add_to_history(fixed_code)
-                    success, message = execute_code(fixed_code)
-                    if success:
-                        st.success("Code fixed and executed successfully.")
-                        st.session_state.last_error = None
-                    else:
-                        st.error(f"Error after fixing: {message}")
-                        st.session_state.last_error = message
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
+        st.subheader("🖥️ Code Executor")
+        
+        st.session_state.code_editor = st.text_area("Python Code", value=st.session_state.code_editor, height=300, key="code_input")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🏃‍♂️ Run Code", key="run_code"):
+                if st.session_state.code_editor:
+                    with st.spinner("Executing code..."):
+                        success, message = execute_code(st.session_state.code_editor)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                            st.session_state.last_error = message
+                else:
+                    st.warning("Please write some code to execute.")
 
-    with col3:
-        if st.button("🧹 Clear Code"):
+        with col2:
+            if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+                if st.session_state.last_error and st.session_state.code_editor:
+                    with st.spinner("Fixing code..."):
+                        fixed_code = fix_code(st.session_state.code_editor, st.session_state.last_error, api_key)
+                        st.session_state.code_editor = fixed_code
+                        add_to_history(fixed_code)
+                        success, message = execute_code(fixed_code)
+                        if success:
+                            st.success("Code fixed and executed successfully.")
+                            st.session_state.last_error = None
+                        else:
+                            st.error(f"Error after fixing: {message}")
+                            st.session_state.last_error = message
+                else:
+                    st.warning("No error to fix or no previous code execution.")
+
+        if st.button("🧹 Clear Code", key="clear_code"):
             st.session_state.code_editor = ""
             st.session_state.last_error = None
-            st.experimental_rerun()
-
-    with col4:
-        if st.button("🧹 Clear Chat"):
-            st.session_state.messages = [{"role": "assistant", "content": "Chat cleared. How can I assist you?"}]
-            st.experimental_rerun()
-
-    with col5:
-        if st.button("🔄 Reset All"):
-            st.session_state.messages = [{"role": "assistant", "content": "Everything has been reset. How can I help you today?"}]
-            st.session_state.last_error = None
-            st.session_state.code_editor = ""
-            st.session_state.code_history = []
-            clear_generated_files()
             st.experimental_rerun()
 
     # Display generated files
-    display_generated_files()
+    st.subheader("📁 Generated Files")
+    files = list_files()
+    if files:
+        for file in files:
+            with st.expander(f"{file}", expanded=False):
+                file_path = os.path.join("generated_files", file)
+                display_file(file_path)
+                
+                with open(file_path, "rb") as f:
+                    st.download_button(
+                        label=f"Download {file}",
+                        data=f,
+                        file_name=file,
+                        mime="application/octet-stream",
+                        key=f"download_{uuid.uuid4()}"
+                    )
+    else:
+        st.info("No generated files yet. Run some code that generates output to see files here.")
 
-    # Add a section for code suggestions and auto-completion
-    st.markdown("### Code Suggestions")
-    if st.checkbox("Enable Code Suggestions"):
-        current_line = st.text_input("Current line of code:")
-        suggestions = get_code_suggestions(current_line)
-        if suggestions:
-            st.write("Suggestions:")
-            for suggestion in suggestions:
-                if st.button(suggestion):
-                    st.session_state.code_editor += suggestion
-                    st.experimental_rerun()
-
-# Function to get code suggestions
-def get_code_suggestions(current_line):
-    suggestions = []
-    
-    if 'st.' in current_line:
-        widget_funcs = get_streamlit_widgets()
-        suggestions.extend([func for func in widget_funcs if func.startswith(current_line.split('.')[-1])])
-    
-    # Add more suggestion logic here for other libraries
-    
-    return suggestions
-
-def get_streamlit_widgets():
-    return [name for name, func in inspect.getmembers(st) 
-            if inspect.isfunction(func) and (name.startswith('slider') or name.startswith('text_input') or name.startswith('checkbox'))]
+    # Add a footer
+    st.markdown("---")
+    st.markdown("Made with ❤️ by Your Advanced Coding Assistant")
 
 # Entry point
 if __name__ == "__main__":
