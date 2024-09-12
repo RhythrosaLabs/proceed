@@ -270,15 +270,19 @@ def main():
         st.markdown("- File System: save_file, load_file, list_files")
         st.markdown("- Others: io, base64")
 
-    # Display chat messages
-    for message in st.session_state.messages:
-        display_chat_message(message["role"], message["content"])
+    # Layout for chat messages and code executor
+    col1, col2 = st.columns([1, 1.5])
 
-    # Code execution area
-    st.markdown("### Code Execution Area")
-    with st.container():
+    with col1:
+        # Display chat messages
+        for message in st.session_state.messages:
+            display_chat_message(message["role"], message["content"])
+
+    with col2:
+        # Code execution area
+        st.markdown("### Code Execution Area")
         st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
-        
+
         # Display the current code
         if st.session_state.last_code:
             st.code(st.session_state.last_code, language="python")
@@ -316,11 +320,24 @@ st.write("Data saved to 'scatter_data.csv'")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # Display generated files
+        st.markdown("### Generated Files")
+        files = list_files()
+        if files:
+            for file in files:
+                if st.button(f"View {file}"):
+                    content = load_file(file)
+                    st.text_area("File Content", content, height=200)
+        else:
+            st.info("No generated files yet.")
+
     # Chat input
     prompt = st.chat_input("Ask me anything about coding or request a visualization...")
 
-    # Action buttons
+    # Action buttons stretched across the bottom
+    st.markdown("---")
     col1, col2, col3, col4, col5 = st.columns(5)
+
     with col1:
         if st.button("🏃‍♂️ Run Code", key="run_code"):
             if st.session_state.last_code:
@@ -379,17 +396,6 @@ st.write("Data saved to 'scatter_data.csv'")
                     st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
-    # Display generated files
-    st.markdown("### Generated Files")
-    files = list_files()
-    if files:
-        for file in files:
-            if st.button(f"View {file}"):
-                content = load_file(file)
-                st.text_area("File Content", content, height=200)
-    else:
-        st.info("No generated files yet.")
 
 # Entry point
 if __name__ == "__main__":
