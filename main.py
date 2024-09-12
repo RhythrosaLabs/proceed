@@ -285,6 +285,7 @@ def save_audio(audio, sample_rate, filename):
     display_generated_file(f"generated_files/{filename}")
 
 # Function to display an individual file based on type
+# Function to display an individual file based on type
 def display_generated_file(filepath):
     if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
         st.image(filepath, use_column_width=True)
@@ -294,6 +295,7 @@ def display_generated_file(filepath):
     elif filepath.endswith('.mp4'):
         st.video(filepath)
     elif filepath.endswith('.html'):
+        # Display HTML file
         with open(filepath, 'r') as f:
             html_string = f.read()
         st.components.v1.html(html_string, height=600)
@@ -304,7 +306,6 @@ def display_generated_file(filepath):
         st.text(content)
 
 # Function to display all generated files with download options
-# Display generated files only if they exist
 def display_generated_files():
     files = list_files()
     if files:
@@ -323,6 +324,19 @@ def display_generated_files():
                 )
     else:
         st.info("No generated files yet.")
+
+# Function to save an HTML file
+def save_html(content, filename):
+    file_path = f"generated_files/{filename}"
+    with open(file_path, "w") as f:
+        f.write(content)
+    # Display the file immediately
+    display_generated_file(file_path)
+
+# Example usage of save_html
+html_content = "<html><body><h1>Hello, Streamlit!</h1></body></html>"
+save_html(html_content, "index.html")
+
 
 
 
