@@ -3,7 +3,6 @@ import requests
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from streamlit_lottie import st_lottie
 from streamlit_ace import st_ace
 import json
 import matplotlib.pyplot as plt
@@ -65,7 +64,7 @@ st.markdown("""
         max-width: 78px;
         max-height: 78px;
         border-radius: 50%;
-        object-fit: cover.
+        object-fit: cover;
     }
     .chat-message .message {
         width: 80%;
@@ -98,7 +97,7 @@ st.markdown("""
         border-radius: 20px;
         border: none;
         padding: 5px 10px;
-        transition: all 0.3s ease.
+        transition: all 0.3s ease;
     }
     .fix-button:hover {
         background-color: #FF8C00;
@@ -109,7 +108,7 @@ st.markdown("""
         border-radius: 10px;
         padding: 15px;
         margin-top: 20px;
-        margin-bottom: 20px.
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -208,12 +207,6 @@ def main():
             with st.chat_message(role):
                 st.markdown(content)
 
-        # User input for chat
-        prompt = st.chat_input("Ask me anything or provide code to run...")
-        if prompt:
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            # Handle user response from GPT if applicable (not implemented here)
-
     with col2:
         # Editable code execution area
         st.markdown("### Code Execution Area")
@@ -242,6 +235,14 @@ def main():
                     st.text_area("File Content", content, height=200)
         else:
             st.info("No generated files yet.")
+
+    # Chat input stretched across both columns at the bottom
+    st.markdown("---")
+    user_input = st.text_input("Ask me anything or provide code to run...")
+
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        # Handle user response from GPT if applicable (not implemented here)
 
 # Entry point
 if __name__ == "__main__":
