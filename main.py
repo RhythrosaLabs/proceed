@@ -176,7 +176,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 # Function to load Lottie animation
 def load_lottieurl(url: str):
     r = requests.get(url)
@@ -184,33 +183,35 @@ def load_lottieurl(url: str):
         return None
     return r.json()
     
+import os
+import streamlit as st
+import multiprocessing
+import psutil
+import io
+import contextlib
+import traceback
+import soundfile as sf
+from PIL import Image
+
+# Ensure directory for generated files exists
+def ensure_directory_exists():
+    if not os.path.exists("generated_files"):
+        os.makedirs("generated_files")
+
+# Function to clear all generated files
 def clear_generated_files():
     folder = "generated_files"
+    ensure_directory_exists()
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
         if os.path.isfile(file_path):
             os.unlink(file_path)
 
-
-# Updated function to execute user-provided code
-# Function to execute user-provided code
 # Function to execute user-provided code
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
             'st': st,
-            'px': px,
-            'pd': pd,
-            'np': np,
-            'plt': plt,
-            'sns': sns,
-            'alt': alt,
-            'pdk': pdk,
-            'librosa': librosa,
-            'cv2': cv2,
-            'Image': Image,
-            'io': io,
-            'base64': base64,
             'save_file': save_file,
             'load_file': load_file,
             'list_files': list_files,
@@ -265,26 +266,30 @@ def execute_code(code, timeout=30):
 
 # File system management functions
 def save_file(filename, content):
+    ensure_directory_exists()
     with open(f"generated_files/{filename}", "w") as f:
         f.write(content)
 
 def load_file(filename):
+    ensure_directory_exists()
     with open(f"generated_files/{filename}", "r") as f:
         return f.read()
 
 def list_files():
+    ensure_directory_exists()
     return os.listdir("generated_files")
 
 # Function to save various media outputs
 def save_image(img, filename):
+    ensure_directory_exists()
     img.save(f"generated_files/{filename}")
     display_generated_file(f"generated_files/{filename}")
 
 def save_audio(audio, sample_rate, filename):
+    ensure_directory_exists()
     sf.write(f"generated_files/{filename}", audio, sample_rate)
     display_generated_file(f"generated_files/{filename}")
 
-# Function to display an individual file based on type
 # Function to display an individual file based on type
 def display_generated_file(filepath):
     if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
@@ -327,6 +332,7 @@ def display_generated_files():
 
 # Function to save an HTML file
 def save_html(content, filename):
+    ensure_directory_exists()
     file_path = f"generated_files/{filename}"
     with open(file_path, "w") as f:
         f.write(content)
@@ -337,7 +343,19 @@ def save_html(content, filename):
 html_content = "<html><body><h1>Hello, Streamlit!</h1></body></html>"
 save_html(html_content, "index.html")
 
+# Function to convert Pygame surface to PIL Image
+def pygame_surface_to_image(surface):
+    buffer = surface.get_view("RGB")
+    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
 
+# New functions to save various outputs
+def save_plot(fig, filename):
+    ensure_directory_exists()
+    fig.savefig(f"generated_files/{filename}")
+
+def save_plotly(fig, filename):
+    ensure_directory_exists()
+    fig.write_html(f"generated_files/{filename}")
 
 
 def capture_widget_states(local_vars):
@@ -379,20 +397,6 @@ def display_chat_message(role, content):
                     st.markdown(parts[2])
             else:
                 st.markdown(content)
-
-# Function to convert Pygame surface to PIL Image
-def pygame_surface_to_image(surface):
-    buffer = surface.get_view("RGB")
-    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
-
-
-# New functions to save various outputs
-def save_plot(fig, filename):
-    fig.savefig(f"generated_files/{filename}")
-
-def save_plotly(fig, filename):
-    fig.write_html(f"generated_files/{filename}")
-
 
 # Function to call GPT-4 via requests (unchanged)
 def chat_with_gpt(prompt, api_key, conversation_history):
