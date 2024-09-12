@@ -23,3 +23,6 @@ sox
 replicate
 music21
 psutil
+pyglet
+arcade
+imageio
