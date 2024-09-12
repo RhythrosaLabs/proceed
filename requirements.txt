@@ -26,6 +26,7 @@ psutil
 pyglet
 midiutil
 tensorflow
+javascript
 astor
 black
 bokeh
