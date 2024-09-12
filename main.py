@@ -14,7 +14,6 @@ import librosa
 import librosa.display
 import cv2
 from PIL import Image
-import multiprocessing
 import io
 import base64
 import pedalboard
@@ -24,13 +23,8 @@ import pygame
 import soundfile as sf
 import sox
 import os
-import contextlib
-import plotly.graph_objs as go
-import uuid
-import time
-import psutil
 
-# Custom CSS with added styles for bottom bar and chat input
+# Custom CSS
 st.markdown("""
 <style>
     .stApp {
@@ -55,19 +49,8 @@ st.markdown("""
         color: white;
         border-radius: 10px;
     }
-    .file-display {
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 10px;
-        background-color: rgba(49, 51, 63, 0.9);
-        color: white;
-    }
     .chat-message {
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        display: flex;
+        padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;
     }
     .chat-message.user {
         background-color: rgba(255, 255, 255, 0.1);
@@ -87,6 +70,11 @@ st.markdown("""
     .chat-message .message {
         width: 80%;
         padding: 0 1.5rem;
+    }
+    .floating-button {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
     }
     .code-block {
         background-color: rgba(0, 0, 0, 0.2);
@@ -123,56 +111,6 @@ st.markdown("""
         margin-top: 20px;
         margin-bottom: 20px;
     }
-    .file-display {
-        border: 1px solid #ccc;
-        border-radius: 10px;
-        margin: 5px 0;
-        padding: 15px;
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-    .file-display h6 {
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
-    }
-
-    /* New styles for the bottom action bar */
-    .bottom-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: rgba(49, 51, 63, 0.9);
-        padding: 10px;
-        z-index: 999;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-    }
-    .bottom-bar .stButton > button {
-        height: 2.5rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    /* Adjust main content to not be hidden behind bottom bar */
-    .main .block-container {
-        padding-bottom: 5rem;
-    }
-    /* Custom styles for the chat input */
-    .stChatInputContainer {
-        position: fixed;
-        bottom: 4rem;
-        left: 0;
-        right: 0;
-        padding: 1rem;
-        background-color: rgba(49, 51, 63, 0.9);
-        z-index: 998;
-    }
-    .stChatInputContainer > div {
-        margin-bottom: 0 !important;
-    }
-    /* Hide default Streamlit watermark */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -183,208 +121,74 @@ def load_lottieurl(url: str):
         return None
     return r.json()
 
-# Ensure directory for generated files exists
-def ensure_directory_exists():
-    if not os.path.exists("generated_files"):
-        os.makedirs("generated_files")
-
-# Function to clear all generated files
-def clear_generated_files():
-    folder = "generated_files"
-    ensure_directory_exists()
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        if os.path.isfile(file_path):
-            os.unlink(file_path)
-
 # Function to execute user-provided code
-def execute_code(code, timeout=30):
-    def worker(code, return_dict):
-        local_vars = {
-            'st': st,
-            'save_file': save_file,
-            'load_file': load_file,
-            'list_files': list_files,
-            'save_image': save_image,
-            'save_audio': save_audio,
-            'display_generated_file': display_generated_file,
-        }
+def execute_code(code):
+    # Create a dictionary of local variables that includes all imported libraries
+    local_vars = {
+        'st': st,
+        'px': px,
+        'pd': pd,
+        'np': np,
+        'plt': plt,
+        'sns': sns,
+        'alt': alt,
+        'pdk': pdk,
+        'librosa': librosa,
+        'cv2': cv2,
+        'Image': Image,
+        'io': io,
+        'base64': base64,
+        'pedalboard': pedalboard,
+        'Pedalboard': Pedalboard,
+        'Chorus': Chorus,
+        'Reverb': Reverb,
+        'mido': mido,
+        'pygame': pygame,
+        'sf': sf,
+        'sox': sox,
+        'save_file': save_file,
+        'load_file': load_file,
+        'list_files': list_files
+    }
+    
+    # Execute the code
+    exec(code, globals(), local_vars)
+    
+    # Check if there's a matplotlib figure to display
+    if 'plt' in local_vars and plt.get_fignums():
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        st.image(buf, use_column_width=True)
+        plt.close()
+    
+    # Check if there's a pygame surface to display
+    if 'pygame' in local_vars and pygame.get_init():
+        surface = pygame.display.get_surface()
+        if surface:
+            pygame_surface_to_image(surface)
+    
+    return local_vars
 
-        output = io.StringIO()
-        error_output = io.StringIO()
+# Function to convert Pygame surface to Streamlit image
+def pygame_surface_to_image(surface):
+    buffer = surface.get_view("RGB")
+    img = Image.frombytes("RGB", surface.get_size(), buffer.raw)
+    st.image(img, caption="Pygame Output", use_column_width=True)
 
-        try:
-            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error_output):
-                exec(code, globals(), local_vars)
-
-            return_dict['output'] = output.getvalue()
-            return_dict['error'] = error_output.getvalue()
-        except Exception:
-            return_dict['error'] = traceback.format_exc()
-
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-    process = multiprocessing.Process(target=worker, args=(code, return_dict))
-
-    process.start()
-    start_time = time.time()
-
-    while process.is_alive():
-        if time.time() - start_time > timeout:
-            process.terminate()
-            return False, "Execution timed out."
-
-        if psutil.virtual_memory().percent > 90:
-            process.terminate()
-            return False, "Memory usage exceeded limit."
-
-        time.sleep(0.1)
-
-    process.join()
-
-    if 'error' in return_dict and return_dict['error']:
-        return False, f"Error:\n{return_dict['error']}"
-
-    if 'output' in return_dict and return_dict['output']:
-        st.text("Print output:")
-        st.code(return_dict['output'], language="")
-
-    # Refresh and display files generated after execution
-    display_generated_files()
-
-    return True, "Code executed successfully."
-
-# File system management functions
+# Functions for file system management
 def save_file(filename, content):
-    ensure_directory_exists()
     with open(f"generated_files/{filename}", "w") as f:
         f.write(content)
 
 def load_file(filename):
-    ensure_directory_exists()
     with open(f"generated_files/{filename}", "r") as f:
         return f.read()
 
 def list_files():
-    ensure_directory_exists()
     return os.listdir("generated_files")
 
-# Function to save various media outputs
-def save_image(img, filename):
-    ensure_directory_exists()
-    img.save(f"generated_files/{filename}")
-    display_generated_file(f"generated_files/{filename}")
-
-def save_audio(audio, sample_rate, filename):
-    ensure_directory_exists()
-    sf.write(f"generated_files/{filename}", audio, sample_rate)
-    display_generated_file(f"generated_files/{filename}")
-
-# Function to display an individual file based on type
-def display_generated_file(filepath):
-    if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-        st.image(filepath, use_column_width=True)
-    elif filepath.endswith(('.wav', '.mp3')):
-        audio_bytes = open(filepath, 'rb').read()
-        st.audio(audio_bytes)
-    elif filepath.endswith('.mp4'):
-        st.video(filepath)
-    elif filepath.endswith('.html'):
-        # Display HTML file
-        with open(filepath, 'r') as f:
-            html_string = f.read()
-        st.components.v1.html(html_string, height=600)
-    else:
-        # Display plain text or other non-media files
-        with open(filepath, 'r') as f:
-            content = f.read()
-        st.text(content)
-
-# Function to display all generated files with download options
-def display_generated_files():
-    files = list_files()
-    if files:
-        st.markdown("### Generated Files")
-        for i, file in enumerate(files):
-            filepath = f"generated_files/{file}"
-            with st.expander(f"View {file}", expanded=False):
-                display_generated_file(filepath)
-            with open(filepath, "rb") as f:
-                st.download_button(
-                    label=f"Download {file}",
-                    data=f,
-                    file_name=file,
-                    mime="application/octet-stream",
-                    key=f"download_button_{i}"  # Unique key for each button
-                )
-    else:
-        st.info("No generated files yet.")
-
-# Function to save an HTML file
-def save_html(content, filename):
-    ensure_directory_exists()
-    file_path = f"generated_files/{filename}"
-    with open(file_path, "w") as f:
-        f.write(content)
-    # Display the file immediately
-    display_generated_file(file_path)
-
-# Function to convert Pygame surface to PIL Image
-def pygame_surface_to_image(surface):
-    buffer = surface.get_view("RGB")
-    return Image.frombytes("RGB", surface.get_size(), buffer.raw)
-
-# New functions to save various outputs
-def save_plot(fig, filename):
-    ensure_directory_exists()
-    fig.savefig(f"generated_files/{filename}")
-
-def save_plotly(fig, filename):
-    ensure_directory_exists()
-    fig.write_html(f"generated_files/{filename}")
-
-
-def capture_widget_states(local_vars):
-    widget_states = {}
-    for name, value in local_vars.items():
-        if name.startswith('st_'):
-            if hasattr(value, 'value'):
-                widget_states[name] = value.value
-    return widget_states
-
-def restore_widget_states(widget_states):
-    for name, value in widget_states.items():
-        if name in st.session_state:
-            st.session_state[name] = value
-
-def get_streamlit_widgets():
-    return [name for name, func in inspect.getmembers(st) 
-            if inspect.isfunction(func) and name.startswith('slider') or name.startswith('text_input') or name.startswith('checkbox')]
-
-def get_code_suggestions(current_line):
-    suggestions = []
-    
-    if 'st.' in current_line:
-        widget_funcs = get_streamlit_widgets()
-        suggestions.extend([func for func in widget_funcs if func.startswith(current_line.split('.')[-1])])
-    
-    return suggestions
-
-def display_chat_message(role, content):
-    with st.chat_message(role):
-        if role == "user":
-            st.markdown(content)
-        else:
-            if "```python" in content:
-                parts = content.split("```python")
-                st.markdown(parts[0])
-                st.code(parts[1].split("```")[0], language="python")
-                if len(parts) > 2:
-                    st.markdown(parts[2])
-            else:
-                st.markdown(content)
-
-# Function to call GPT-4 via requests (unchanged)
+# Function to call GPT-4 via requests
 def chat_with_gpt(prompt, api_key, conversation_history):
     api_url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -393,9 +197,9 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     }
     messages = conversation_history + [{"role": "user", "content": prompt}]
     data = {
-        "model": "gpt-4o-mini",
+        "model": "gpt-4",
         "messages": messages,
-        "max_tokens": 2000
+        "max_tokens": 150
     }
     try:
         response = requests.post(api_url, headers=headers, json=data)
@@ -405,7 +209,7 @@ def chat_with_gpt(prompt, api_key, conversation_history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Function to display chat messages (unchanged)
+# Function to display chat messages
 def display_chat_message(role, content):
     with st.chat_message(role):
         if role == "user":
@@ -420,104 +224,167 @@ def display_chat_message(role, content):
             else:
                 st.markdown(content)
 
-# Function to fix code (unchanged)
+# Function to fix code
 def fix_code(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
 
+# Main function to run the Streamlit app
 def main():
     st.title("🚀 Advanced Coding Assistant")
     
-    # Clear generated files on start
-    clear_generated_files()
-
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. Ask me anything or request code!"})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and audio processing."})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
         st.session_state.last_code = None
-    if 'code_editor' not in st.session_state:
-        st.session_state.code_editor = ""
 
-    # Create directory for generated files if not exists
+    # Create directory for generated files if it doesn't exist
     if not os.path.exists("generated_files"):
         os.makedirs("generated_files")
 
-    # Sidebar for API key input
+    # Sidebar for API key input and library information
     with st.sidebar:
         st.header("Settings")
-        api_key = st.text_input("Enter your OpenAI API Key", type="password", key="api_key_input")
+        openai_api_key = st.text_input("Enter your OpenAI API Key", type="password")
+        st.markdown("---")
+        st.markdown("### Quick Tips:")
+        st.markdown("1. Chat naturally about coding tasks")
+        st.markdown("2. Request code samples for various tasks")
+        st.markdown("3. Experiment with data visualization and audio processing")
+        st.markdown("4. Use buttons below chat to manage code and conversation")
+        st.markdown("5. Access generated files using provided functions")
+        
+        st.markdown("---")
+        st.markdown("### Available Libraries and Features:")
+        st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
+        st.markdown("- Data: pandas, numpy")
+        st.markdown("- Geospatial: pydeck")
+        st.markdown("- Audio: librosa, pedalboard, mido, soundfile, sox")
+        st.markdown("- Image: PIL, cv2")
+        st.markdown("- Game Dev: pygame")
+        st.markdown("- File System: save_file, load_file, list_files")
+        st.markdown("- Others: io, base64")
 
-    # Display previous chat messages
+    # Display chat messages
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
     # Code execution area
     st.markdown("### Code Execution Area")
-    code_editor = st_ace(
-        value=st.session_state.code_editor,
-        language="python",
-        theme="monokai",
-        keybinding="vscode",
-        show_gutter=True,
-        show_print_margin=True,
-        wrap=True,
-        auto_update=True,
-        font_size=14,
-        tab_size=4,
-        placeholder="Write your Python code here...",
-        key="ace_editor"
-    )
+    with st.container():
+        st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
+        
+        # Display the current code
+        if st.session_state.last_code:
+            st.code(st.session_state.last_code, language="python")
+        else:
+            st.info("No code to display. Request a code sample or write some code to get started!")
+            st.markdown("Here's an example to try:")
+            example_code = """
+# Example: Create an interactive scatter plot with Plotly
+import plotly.express as px
+import numpy as np
 
-    # Update session state with current code
-    st.session_state.code_editor = code_editor
-    st.session_state.last_code = code_editor
+# Generate some random data
+np.random.seed(42)
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100),
+    'size': np.random.randint(1, 20, 100)
+})
 
-    # Process chat input
-    prompt = st.chat_input("Ask for code or any coding question...", key="chat_input")
-    
+# Create a scatter plot
+fig = px.scatter(data, x='x', y='y', size='size', color='size',
+                 title='Interactive Scatter Plot')
+fig.update_layout(template='plotly_dark')
+
+# Display the plot
+st.plotly_chart(fig)
+
+# Save the data
+data.to_csv('generated_files/scatter_data.csv', index=False)
+st.write("Data saved to 'scatter_data.csv'")
+"""
+            st.code(example_code, language="python")
+            if st.button("Try This Example"):
+                st.session_state.last_code = example_code
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Chat input
+    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+
+    # Action buttons
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        if st.button("🏃‍♂️ Run Code", key="run_code"):
+            if st.session_state.last_code:
+                with st.spinner("Executing code..."):
+                    try:
+                        result = execute_code(st.session_state.last_code)
+                        st.success("Code executed successfully.")
+                        st.session_state.last_error = None
+                    except Exception as e:
+                        error_msg = f"Error executing code: {str(e)}"
+                        st.error(error_msg)
+                        st.session_state.last_error = str(e)
+            else:
+                st.warning("No code to execute. Please request a code sample first.")
+
+    with col2:
+        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
+            if st.session_state.last_error and st.session_state.last_code:
+                with st.spinner("Fixing code..."):
+                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
+                    st.session_state.last_code = fixed_code
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    with col3:
+        if st.button("🧹 Clear Code", key="clear_code"):
+            st.session_state.last_code = None
+            st.session_state.last_error = None
+
+    with col4:
+        if st.button("🧹 Clear Chat", key="clear_chat"):
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+
+    with col5:
+        if st.button("🔄 Reset All", key="reset_all"):
+            st.session_state.messages = []
+            st.session_state.last_error = None
+            st.session_state.last_code = None
+            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
+
     if prompt:
-        # Process chat using GPT-4 and add to conversation
-        if api_key:
-            with st.spinner("Processing..."):
-                response = chat_with_gpt(prompt, api_key, st.session_state.messages)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        # Process with GPT-4
+        if openai_api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 display_chat_message("assistant", response)
                 
-                # If response contains code, populate the editor with it
+                # Update last_code if the response contains a code block
                 if "```python" in response:
-                    code_block = response.split("```python")[1].split("```")[0].strip()
-                    st.session_state.code_editor = code_block
-                    st.session_state.last_code = code_block
+                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
         else:
-            st.warning("Please enter your OpenAI API key.")
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
-    # Code execution buttons
-    if st.button("🏃‍♂️ Run Code"):
-        if st.session_state.last_code:
-            with st.spinner("Executing code..."):
-                success, message = execute_code(st.session_state.last_code)
-                if success:
-                    st.success(message)
-                else:
-                    st.error(message)
-        else:
-            st.warning("Please write some code to execute.")
-
-    if st.button("🔧 Fix and Rerun"):
-        if st.session_state.last_error and st.session_state.last_code:
-            with st.spinner("Fixing code..."):
-                fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                st.session_state.code_editor = fixed_code
-                st.session_state.last_code = fixed_code
-
-    # Display generated files if any
-    display_generated_files()
-
-# Entry point
-if __name__ == "__main__":
-    main()
+    # Display generated files
+    st.markdown("### Generated Files")
+    files = list_files()
+    if files:
+        for file in files:
+            if st.button(f"View {file}"):
+                content = load_file(file)
+                st.text_area("File Content", content
