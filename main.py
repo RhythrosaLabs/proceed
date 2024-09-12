@@ -235,7 +235,7 @@ def main():
     if 'uploaded_file' not in st.session_state:
         st.session_state.uploaded_file = None
     if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = "gpt-4"
+        st.session_state.selected_model = "gpt-4o"
     if 'temperature' not in st.session_state:
         st.session_state.temperature = 0.7
 
@@ -247,7 +247,7 @@ def main():
     with st.sidebar:
         st.header("🔑 Settings")
         openai_api_key = st.text_input("Enter your OpenAI API Key", type="password", help="Your API key is needed to communicate with OpenAI's GPT-4 model.")
-        st.selectbox("Select Model", ["gpt-4", "gpt-3.5-turbo"], key='selected_model')
+        st.selectbox("Select Model", ["gpt-4o", "gpt-4o-mini"], key='selected_model')
         st.slider("Set Temperature", min_value=0.0, max_value=1.0, value=0.7, key='temperature', help="Controls the creativity of the AI's responses.")
         st.markdown("---")
         st.subheader("📁 File Management")
