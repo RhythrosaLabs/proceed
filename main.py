@@ -424,13 +424,14 @@ def fix_code(code, error_message, api_key):
 
 def main():
     st.title("🚀 Advanced Coding Assistant")
-    # At the beginning of main()
+    
+    # Clear generated files on start
     clear_generated_files()
 
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and image processing."})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your coding assistant. Ask me anything or request code!"})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -438,7 +439,7 @@ def main():
     if 'code_editor' not in st.session_state:
         st.session_state.code_editor = ""
 
-    # Create directory for generated files if it doesn't exist
+    # Create directory for generated files if not exists
     if not os.path.exists("generated_files"):
         os.makedirs("generated_files")
 
@@ -446,157 +447,76 @@ def main():
     with st.sidebar:
         st.header("Settings")
         api_key = st.text_input("Enter your OpenAI API Key", type="password", key="api_key_input")
-        st.markdown("---")
-        st.markdown("### Quick Tips:")
-        st.markdown("1. Chat naturally about coding tasks")
-        st.markdown("2. Request code samples for various visualizations")
-        st.markdown("3. Experiment with image and data processing")
-        st.markdown("4. Use the buttons at the bottom to manage your code and chat")
-        
-        st.markdown("---")
-        st.markdown("### Available Libraries:")
-        st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
-        st.markdown("- Data: pandas, numpy")
-        st.markdown("- Geospatial: pydeck")
-        st.markdown("- Audio: librosa")
-        st.markdown("- Image: PIL, cv2")
-        st.markdown("- Others: io, base64")
 
-    # Display chat messages
+    # Display previous chat messages
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
     # Code execution area
     st.markdown("### Code Execution Area")
-    with st.container():
-        st.markdown('<div class="code-execution-area">', unsafe_allow_html=True)
-        
-        # Custom code editor with syntax highlighting and suggestions
-        code_editor = st_ace(
-            value=st.session_state.code_editor,
-            language="python",
-            theme="monokai",
-            keybinding="vscode",
-            show_gutter=True,
-            show_print_margin=True,
-            wrap=True,
-            auto_update=True,
-            font_size=14,
-            tab_size=4,
-            placeholder="Write your Python code here...",
-            key="ace_editor"
-        )
+    code_editor = st_ace(
+        value=st.session_state.code_editor,
+        language="python",
+        theme="monokai",
+        keybinding="vscode",
+        show_gutter=True,
+        show_print_margin=True,
+        wrap=True,
+        auto_update=True,
+        font_size=14,
+        tab_size=4,
+        placeholder="Write your Python code here...",
+        key="ace_editor"
+    )
 
-        # Update session state with current code
-        st.session_state.code_editor = code_editor
-        st.session_state.last_code = code_editor
+    # Update session state with current code
+    st.session_state.code_editor = code_editor
+    st.session_state.last_code = code_editor
 
-        # Provide code suggestions
-        current_line = code_editor.split('\n')[-1] if code_editor else ""
-        suggestions = get_code_suggestions(current_line)
-        if suggestions:
-            st.write("Suggestions:", ", ".join(suggestions))
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Display generated files
-    st.markdown("### Generated Files")
-    files = list_files()
-    if files:
-        for i, file in enumerate(files):
-            filepath = f"generated_files/{file}"
-            with st.expander(f"View {file}", expanded=False):
-                display_generated_file(filepath)
-            with open(filepath, "rb") as f:
-                st.download_button(
-                    label=f"Download {file}",
-                    data=f,
-                    file_name=file,
-                    mime="application/octet-stream",
-                    key=f"download_button_{i}"  # Unique key for each button
-                )
-    else:
-        st.info("No generated files yet.")
-
-    # Chat input (remains at the bottom)
-    prompt = st.chat_input("Ask me anything about coding or request a visualization...", key="chat_input")
-
-    # Bottom action bar
-    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        if st.button("🏃‍♂️ Run Code", key="run_code"):
-            if st.session_state.last_code:
-                with st.spinner("Executing code..."):
-                    success, message = execute_code(st.session_state.last_code)
-                    if success:
-                        st.success(message)
-                        st.session_state.last_error = None
-                    else:
-                        st.error(message)
-                        st.session_state.last_error = message
-            else:
-                st.warning("No code to execute. Please write some code first.")
-
-    with col2:
-        if st.button("🔧 Fix and Rerun", key="fix_and_rerun"):
-            if st.session_state.last_error and st.session_state.last_code:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
-                    st.session_state.code_editor = fixed_code
-                    st.session_state.last_code = fixed_code
-                    success, message = execute_code(fixed_code)
-                    if success:
-                        st.success("Code fixed and executed successfully.")
-                        st.session_state.last_error = None
-                    else:
-                        st.error(f"Error after fixing: {message}")
-                        st.session_state.last_error = message
-                    st.rerun()
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
-
-    with col3:
-        if st.button("🧹 Clear Code", key="clear_code"):
-            st.session_state.code_editor = ""
-            st.session_state.last_code = None
-            st.session_state.last_error = None
-            st.rerun()
-
-    with col4:
-        if st.button("🧹 Clear Chat", key="clear_chat"):
-            st.session_state.messages = []
-            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-            st.rerun()
-
-    with col5:
-        if st.button("🔄 Reset All", key="reset_all"):
-            st.session_state.messages = []
-            st.session_state.last_error = None
-            st.session_state.last_code = None
-            st.session_state.code_editor = ""
-            st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
+    # Process chat input
+    prompt = st.chat_input("Ask for code or any coding question...", key="chat_input")
+    
     if prompt:
-        # Process with GPT-4
+        # Process chat using GPT-4 and add to conversation
         if api_key:
-            with st.spinner("Thinking..."):
+            with st.spinner("Processing..."):
                 response = chat_with_gpt(prompt, api_key, st.session_state.messages)
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 display_chat_message("assistant", response)
                 
-                # Update last_code if the response contains a code block
+                # If response contains code, populate the editor with it
                 if "```python" in response:
                     code_block = response.split("```python")[1].split("```")[0].strip()
                     st.session_state.code_editor = code_block
                     st.session_state.last_code = code_block
-                    st.rerun()
+                    st.experimental_rerun()
         else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
+            st.warning("Please enter your OpenAI API key.")
+
+    # Code execution buttons
+    if st.button("🏃‍♂️ Run Code"):
+        if st.session_state.last_code:
+            with st.spinner("Executing code..."):
+                success, message = execute_code(st.session_state.last_code)
+                if success:
+                    st.success(message)
+                else:
+                    st.error(message)
+        else:
+            st.warning("Please write some code to execute.")
+
+    if st.button("🔧 Fix and Rerun"):
+        if st.session_state.last_error and st.session_state.last_code:
+            with st.spinner("Fixing code..."):
+                fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                st.session_state.code_editor = fixed_code
+                st.session_state.last_code = fixed_code
+                st.experimental_rerun()
+
+    # Display generated files if any
+    display_generated_files()
 
 # Entry point
 if __name__ == "__main__":
     main()
+
