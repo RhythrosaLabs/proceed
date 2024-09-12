@@ -283,6 +283,20 @@ def get_code_suggestions(current_line):
     
     return suggestions
 
+def display_chat_message(role, content):
+    with st.chat_message(role):
+        if role == "user":
+            st.markdown(content)
+        else:
+            if "```python" in content:
+                parts = content.split("```python")
+                st.markdown(parts[0])
+                st.code(parts[1].split("```")[0], language="python")
+                if len(parts) > 2:
+                    st.markdown(parts[2])
+            else:
+                st.markdown(content)
+
 # Function to convert Pygame surface to PIL Image
 def pygame_surface_to_image(surface):
     buffer = surface.get_view("RGB")
