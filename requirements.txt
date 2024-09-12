@@ -36,3 +36,6 @@ scipy
 pyglet
 arcade
 sympy
+scikit-learn
+statsmodels
+dask
