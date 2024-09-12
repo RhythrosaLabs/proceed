@@ -9,8 +9,8 @@ nltk
 networkx
 seaborn
 altair
-streamlit_lottie
-streamlit_ace
+streamlit-lottie
+streamlit-ace
 pydeck
 librosa
 opencv-python-headless
@@ -26,3 +26,7 @@ psutil
 pyglet
 midiutil
 tensorflow
+astor
+black
+bokeh
+streamlit-bokeh-events
