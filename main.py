@@ -30,6 +30,7 @@ import uuid
 # Custom CSS (unchanged)
 
 # Custom CSS with added styles for split screen layout
+# Custom CSS with added styles for split screen layout
 st.markdown("""
 <style>
     .stApp {
@@ -128,11 +129,23 @@ st.markdown("""
         padding: 20px;
         overflow-y: auto;
     }
-    /* Hide default Streamlit watermark */
+    .bottom-bar {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        display: flex;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 10px;
+    }
+    .bottom-bar div {
+        flex: 1;
+        text-align: center;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
 
 # Function to load Lottie animation (unchanged)
 def load_lottieurl(url: str):
