@@ -449,42 +449,7 @@ def main():
         if not st.session_state.last_code:
             st.info("No code to display. Write some code or try the example below!")
             st.markdown("Here's an example to try:")
-            example_code = """
-# Example: Create a scatter plot with Plotly and save it
-import plotly.express as px
-import numpy as np
-
-# Generate some random data
-np.random.seed(42)
-data = pd.DataFrame({
-    'x': np.random.randn(100),
-    'y': np.random.randn(100),
-    'size': np.random.randint(1, 20, 100)
-})
-
-# Create a scatter plot
-fig = px.scatter(data, x='x', y='y', size='size', color='size',
-                 title='Interactive Scatter Plot')
-fig.update_layout(template='plotly_dark')
-
-# Display the plot
-st.plotly_chart(fig)
-
-# Save the plot
-save_plotly(fig, "interactive_scatter_plot.html")
-st.write("Plot saved as 'interactive_scatter_plot.html'")
-
-# Save the data
-data.to_csv('generated_files/scatter_data.csv', index=False)
-st.write("Data saved as 'scatter_data.csv'")
-"""
-            st.code(example_code, language="python")
-            if st.button("Try This Example"):
-                st.session_state.code_editor = example_code
-                st.session_state.last_code = example_code
-                st.rerun()  # Changed from st.experimental_rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
+            
 
     # Display generated files
     st.markdown("### Generated Files")
