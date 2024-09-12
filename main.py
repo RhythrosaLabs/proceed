@@ -429,7 +429,7 @@ def main():
     # Sidebar for API key input
     with st.sidebar:
         st.header("Settings")
-        api_key = st.text_input("Enter your OpenAI API Key", type="password")
+        api_key = st.text_input("Enter your OpenAI API Key", type="password", key="api_key_input")
         st.markdown("---")
         st.markdown("### Quick Tips:")
         st.markdown("1. Chat naturally about coding tasks")
@@ -514,7 +514,7 @@ data.to_csv('generated_files/scatter_data.csv', index=False)
 st.write("Data saved as 'scatter_data.csv'")
 """
             st.code(example_code, language="python")
-            if st.button("Try This Example"):
+            if st.button("Try This Example", key="try_example"):
                 st.session_state.code_editor = example_code
                 st.session_state.last_code = example_code
                 st.rerun()  # Changed from st.experimental_rerun()
@@ -525,35 +525,23 @@ st.write("Data saved as 'scatter_data.csv'")
     st.markdown("### Generated Files")
     files = list_files()
     if files:
-        for file in files:
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                if file.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                    st.image(f"generated_files/{file}", caption=file, use_column_width=True)
-                elif file.endswith('.html'):
-                    with open(f"generated_files/{file}", 'r') as f:
-                        html_string = f.read()
-                    st.components.v1.html(html_string, height=600)
-                elif file.endswith('.wav'):
-                    st.audio(f"generated_files/{file}")
-                elif file.endswith('.mp4'):
-                    st.video(f"generated_files/{file}")
-                else:
-                    content = load_file(file)
-                    st.text_area(f"Content of {file}", content, height=200)
-            with col2:
-                with open(f"generated_files/{file}", "rb") as f:
-                    st.download_button(
-                        label=f"Download {file}",
-                        data=f,
-                        file_name=file,
-                        mime="application/octet-stream"
-                    )
+        for i, file in enumerate(files):
+            filepath = f"generated_files/{file}"
+            with st.expander(f"View {file}", expanded=False):
+                display_generated_file(filepath)
+            with open(filepath, "rb") as f:
+                st.download_button(
+                    label=f"Download {file}",
+                    data=f,
+                    file_name=file,
+                    mime="application/octet-stream",
+                    key=f"download_button_{i}"  # Unique key for each button
+                )
     else:
         st.info("No generated files yet.")
 
     # Chat input (remains at the bottom)
-    prompt = st.chat_input("Ask me anything about coding or request a visualization...")
+    prompt = st.chat_input("Ask me anything about coding or request a visualization...", key="chat_input")
 
     # Bottom action bar
     st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
@@ -634,4 +622,5 @@ st.write("Data saved as 'scatter_data.csv'")
 # Entry point
 if __name__ == "__main__":
     main()
+
 
