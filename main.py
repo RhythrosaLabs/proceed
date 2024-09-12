@@ -339,10 +339,6 @@ def save_html(content, filename):
     # Display the file immediately
     display_generated_file(file_path)
 
-# Example usage of save_html
-html_content = "<html><body><h1>Hello, Streamlit!</h1></body></html>"
-save_html(html_content, "index.html")
-
 # Function to convert Pygame surface to PIL Image
 def pygame_surface_to_image(surface):
     buffer = surface.get_view("RGB")
