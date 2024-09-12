@@ -252,13 +252,6 @@ def main():
         st.header("Settings")
         openai_api_key = st.text_input("Enter your OpenAI API Key", type="password")
         st.markdown("---")
-        st.markdown("### Quick Tips:")
-        st.markdown("1. Chat naturally about coding tasks")
-        st.markdown("2. Request code samples for various tasks")
-        st.markdown("3. Experiment with data visualization and audio processing")
-        st.markdown("4. Use buttons below chat to manage code and conversation")
-        st.markdown("5. Access generated files using provided functions")
-        
         st.markdown("---")
         st.markdown("### Available Libraries and Features:")
         st.markdown("- Plotting: matplotlib, seaborn, plotly, altair")
