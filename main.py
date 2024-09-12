@@ -182,16 +182,6 @@ def load_lottieurl(url: str):
     if r.status_code != 200:
         return None
     return r.json()
-    
-import os
-import streamlit as st
-import multiprocessing
-import psutil
-import io
-import contextlib
-import traceback
-import soundfile as sf
-from PIL import Image
 
 # Ensure directory for generated files exists
 def ensure_directory_exists():
