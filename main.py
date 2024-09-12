@@ -34,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for improved UI
+# Custom CSS for improved UI with padding
 st.markdown("""
     <style>
         /* General settings */
@@ -126,6 +126,11 @@ st.markdown("""
         .ace_identifier {
             color: #d2a8ff;
         }
+        /* Padding for the main content */
+        .main-content {
+            padding: 0 2rem;  /* Add padding on left and right */
+            margin-bottom: 120px; /* Adjusted for the bottom bar */
+        }
         /* Bottom bar styling */
         .bottom-bar {
             position: fixed;
@@ -136,6 +141,8 @@ st.markdown("""
             padding: 0.5rem 1rem;
             z-index: 9999;
             border-top: 1px solid #30363d;
+            padding-left: 2rem;
+            padding-right: 2rem;
         }
         .bottom-bar .stTextInput, .bottom-bar .stButton {
             margin-bottom: 0;
@@ -146,10 +153,6 @@ st.markdown("""
         .bottom-bar .stButton>button {
             width: 100%;
             margin: 0;
-        }
-        /* Adjust main content to prevent overlap */
-        .main-content {
-            margin-bottom: 120px; /* Adjust based on bottom bar height */
         }
     </style>
 """, unsafe_allow_html=True)
@@ -291,7 +294,7 @@ def main():
         st.markdown("---")
         st.caption("Note: Your API key is stored securely in the app session and not shared.")
 
-    # Wrap main content in a container
+    # Wrap main content in a container with padding
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
     # Display chat messages
