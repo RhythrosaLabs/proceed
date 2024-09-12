@@ -186,6 +186,7 @@ def load_lottieurl(url: str):
 
 # Updated function to execute user-provided code
 # Function to execute user-provided code
+# Function to execute user-provided code
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
@@ -205,6 +206,8 @@ def execute_code(code, timeout=30):
             'save_file': save_file,
             'load_file': load_file,
             'list_files': list_files,
+            'save_image': save_image,
+            'save_audio': save_audio,
             'display_generated_file': display_generated_file,
         }
 
@@ -247,9 +250,9 @@ def execute_code(code, timeout=30):
         st.text("Print output:")
         st.code(return_dict['output'], language="")
 
-    # Automatically refresh the file display after code execution
+    # Refresh and display files generated after execution
     display_generated_files()
-    
+
     return True, "Code executed successfully."
 
 # File system management functions
