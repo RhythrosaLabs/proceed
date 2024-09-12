@@ -25,3 +25,4 @@ music21
 psutil
 pyglet
 midiutil
+tensorflow
