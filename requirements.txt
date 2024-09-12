@@ -23,6 +23,4 @@ sox
 replicate
 music21
 psutil
-watchdog
-socket
 zipfile
