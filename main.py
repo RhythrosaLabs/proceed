@@ -27,6 +27,7 @@ import os
 import contextlib
 import plotly.graph_objs as go
 import uuid
+import time
 
 # Custom CSS (unchanged)
 # Custom CSS with added styles for bottom bar and chat input
