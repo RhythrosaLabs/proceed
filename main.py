@@ -41,7 +41,6 @@ st.markdown("""
         body {
             background-color: #0e1117;
             color: #c9d1d9;
-            padding-bottom: 80px;  /* Adjusted for bottom bar */
         }
         /* Remove Streamlit branding */
         #MainMenu {visibility: hidden;}
@@ -62,17 +61,8 @@ st.markdown("""
         .chat-message.assistant {
             background-color: #21262d;
         }
-        .chat-message .avatar {
-            width: 10%;
-        }
-        .chat-message .avatar img {
-            max-width: 40px;
-            max-height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
         .chat-message .message {
-            width: 90%;
+            width: 100%;
             padding-left: 1rem;
         }
         /* Buttons */
@@ -141,7 +131,7 @@ st.markdown("""
             position: fixed;
             bottom: 0;
             left: 0;
-            width: 100%;
+            right: 0;
             background-color: #0e1117;
             padding: 0.5rem 1rem;
             z-index: 9999;
@@ -157,9 +147,9 @@ st.markdown("""
             width: 100%;
             margin: 0;
         }
-        /* Main content adjustments */
+        /* Adjust main content to prevent overlap */
         .main-content {
-            padding-bottom: 80px;  /* Same as the body padding-bottom */
+            margin-bottom: 120px; /* Adjust based on bottom bar height */
         }
     </style>
 """, unsafe_allow_html=True)
@@ -353,88 +343,102 @@ def main():
     # Close the main content container
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Create a container for the bottom bar
-    with st.container():
-        st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
+    # Create the bottom bar
+    st.markdown("""
+        <div class="bottom-bar">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 3; margin-right: 1rem;">
+                    <!-- Prompt Input -->
+                    <input type="text" id="user_input" placeholder="✍️ Your Input: Ask me anything about coding or request a visualization..." style="width: 100%; padding: 0.5rem; background-color: #161b22; color: #c9d1d9; border: none; border-radius: 5px;">
+                </div>
+                <div style="flex: 2; display: flex; justify-content: space-around;">
+                    <!-- Action Buttons -->
+                    <button onclick="sendAction('run_code')" style="background-color: #238636; color: white; border: none; border-radius: 5px; padding: 0.5rem;">🏃‍♂️ Run Code</button>
+                    <button onclick="sendAction('fix_code')" style="background-color: #238636; color: white; border: none; border-radius: 5px; padding: 0.5rem;">🔧 Fix Code</button>
+                    <button onclick="sendAction('save_code')" style="background-color: #238636; color: white; border: none; border-radius: 5px; padding: 0.5rem;">💾 Save Code</button>
+                    <button onclick="sendAction('clear_code')" style="background-color: #238636; color: white; border: none; border-radius: 5px; padding: 0.5rem;">🧹 Clear Code</button>
+                    <button onclick="sendAction('clear_chat')" style="background-color: #238636; color: white; border: none; border-radius: 5px; padding: 0.5rem;">🗑️ Clear Chat</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            function sendAction(action) {
+                const input = document.getElementById('user_input').value;
+                const streamlitAction = window.streamlitAction || function() {};
+                streamlitAction(action, input);
+                document.getElementById('user_input').value = '';
+            }
+        </script>
+    """, unsafe_allow_html=True)
 
-        # Create columns for the input field and action buttons
-        col_input, col_buttons = st.columns([3, 2])
+    # JavaScript communication via Streamlit components
+    from streamlit_javascript import st_javascript
 
-        with col_input:
-            prompt = st.text_input("✍️ Your Input: Ask me anything about coding or request a visualization...", key="user_input")
+    action_input = st_javascript("""
+        new Promise((resolve, reject) => {
+            window.streamlitAction = (action, input) => {
+                resolve({action: action, input: input});
+            }
+        });
+    """)
 
-        with col_buttons:
-            # Arrange buttons horizontally
-            col1, col2, col3, col4, col5 = st.columns(5)
-            with col1:
-                run_code = st.button("🏃‍♂️ Run Code")
-            with col2:
-                fix_code = st.button("🔧 Fix Code")
-            with col3:
-                save_code = st.button("💾 Save Code")
-            with col4:
-                clear_code = st.button("🧹 Clear Code")
-            with col5:
-                clear_chat = st.button("🗑️ Clear Chat")
+    if action_input:
+        action = action_input.get('action')
+        prompt = action_input.get('input')
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # Update button action handlers
-    if run_code:
-        if st.session_state.last_code.strip() != "":
-            with st.spinner("Executing code..."):
-                execute_code(st.session_state.last_code)
-        else:
-            st.warning("No code to execute. Please write or request some code first.")
-
-    if fix_code:
-        if st.session_state.last_error and st.session_state.last_code.strip() != "":
-            if openai_api_key:
-                with st.spinner("Fixing code..."):
-                    fixed_code = fix_code_function(st.session_state.last_code, st.session_state.last_error, openai_api_key)
-                    st.session_state.last_code = fixed_code
-                    st.success("Code has been fixed. Please rerun.")
+        if action == 'run_code':
+            if st.session_state.last_code.strip() != "":
+                with st.spinner("Executing code..."):
+                    execute_code(st.session_state.last_code)
             else:
-                st.warning("Please enter your OpenAI API key in the sidebar.")
-        else:
-            st.warning("No error to fix or no previous code execution. Please run some code first.")
+                st.warning("No code to execute. Please write or request some code first.")
 
-    if save_code:
-        if st.session_state.last_code.strip() != "":
-            with st.spinner("Saving code..."):
+        elif action == 'fix_code':
+            if st.session_state.last_error and st.session_state.last_code.strip() != "":
+                if openai_api_key:
+                    with st.spinner("Fixing code..."):
+                        fixed_code = fix_code_function(st.session_state.last_code, st.session_state.last_error, openai_api_key)
+                        st.session_state.last_code = fixed_code
+                        st.success("Code has been fixed. Please rerun.")
+                else:
+                    st.warning("Please enter your OpenAI API key in the sidebar.")
+            else:
+                st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+        elif action == 'save_code':
+            if st.session_state.last_code.strip() != "":
                 save_file_name = st.text_input("Enter filename to save code:", value="my_code.py")
                 if save_file_name:
                     save_file(save_file_name, st.session_state.last_code)
                     st.success(f"Code saved as '{save_file_name}' in 'generated_files' directory.")
-        else:
-            st.warning("No code to save.")
+            else:
+                st.warning("No code to save.")
 
-    if clear_code:
-        st.session_state.last_code = ""
-        st.session_state.last_error = None
+        elif action == 'clear_code':
+            st.session_state.last_code = ""
+            st.session_state.last_error = None
 
-    if clear_chat:
-        st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+        elif action == 'clear_chat':
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
 
-    # Process user prompt
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
+        if prompt:
+            # Add user message to chat history
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            display_chat_message("user", prompt)
 
-        # Process with GPT-4
-        if openai_api_key:
-            with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
+            # Process with GPT-4
+            if openai_api_key:
+                with st.spinner("Thinking..."):
+                    response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    display_chat_message("assistant", response)
 
-                # Update last_code if the response contains a code block
-                if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-        else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
+                    # Update last_code if the response contains a code block
+                    if "```python" in response:
+                        st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+            else:
+                st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
 # Entry point
 if __name__ == "__main__":
