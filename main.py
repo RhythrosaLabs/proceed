@@ -238,7 +238,8 @@ def main():
     with col2:
         st.button("🧹 Clear Code", on_click=lambda: st.session_state.update({'code_editor': ""}))
     with col3:
-        st.button("🏃‍♂️ Run Code", on_click=lambda: execute_code(st.session_state.code_editor))
+        st.button("🏃‍♂️ Run Code", key="run_code_button", on_click=lambda: execute_code(st.session_state.code_editor))
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Run the app
