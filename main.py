@@ -25,6 +25,7 @@ import soundfile as sf
 import sox
 import os
 import time
+import javascript
 
 # Set page configuration
 st.set_page_config(
