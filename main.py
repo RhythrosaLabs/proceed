@@ -29,6 +29,7 @@ import uuid
 
 # Custom CSS (unchanged)
 
+# Custom CSS with added styles for split screen layout
 st.markdown("""
 <style>
     .stApp {
@@ -115,30 +116,23 @@ st.markdown("""
     }
     .split-screen {
         display: flex;
-        flex-direction: row;
-        height: calc(100vh - 100px); /* Leave room for bottom input bar */
+        height: calc(100vh - 80px);
     }
-    .code-runner, .main-chat {
+    .code-runner {
         width: 50%;
         padding: 20px;
         overflow-y: auto;
     }
-    .bottom-bar {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        display: flex;
-        justify-content: space-evenly;
-        background-color: rgba(255, 255, 255, 0.1);
-        padding: 10px;
-        z-index: 10;
+    .main-chat {
+        width: 50%;
+        padding: 20px;
+        overflow-y: auto;
     }
+    /* Hide default Streamlit watermark */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
-
-
 
 # Function to load Lottie animation (unchanged)
 def load_lottieurl(url: str):
@@ -278,7 +272,7 @@ def main():
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today?"})
+        st.session_state.messages.append({"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today? Feel free to ask questions, request code samples, or ask for explanations on various tasks including data visualization and image processing."})
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
     if 'last_code' not in st.session_state:
@@ -441,7 +435,7 @@ st.write("Data saved as 'scatter_data.csv'")
                 st.session_state.last_code = full_response.split("```python")[1].split("```")[0].strip()
                 st.experimental_rerun()
 
-    # Bottom action bar with input and buttons
+    # Bottom action bar
     st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
 
