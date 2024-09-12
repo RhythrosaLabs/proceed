@@ -387,4 +387,10 @@ st.write("Data saved to 'scatter_data.csv'")
         for file in files:
             if st.button(f"View {file}"):
                 content = load_file(file)
-                st.text_area("File Content", content
+                st.text_area("File Content", content, height=200)
+    else:
+        st.info("No generated files yet.")
+
+# Entry point
+if __name__ == "__main__":
+    main()
