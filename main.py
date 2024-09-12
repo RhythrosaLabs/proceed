@@ -55,6 +55,14 @@ st.markdown("""
         color: white;
         border-radius: 10px;
     }
+    .file-display {
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 10px;
+        background-color: rgba(49, 51, 63, 0.9);
+        color: white;
+    }
     .chat-message {
         padding: 1.5rem;
         border-radius: 0.5rem;
@@ -115,6 +123,17 @@ st.markdown("""
         margin-top: 20px;
         margin-bottom: 20px;
     }
+    .file-display {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        margin: 5px 0;
+        padding: 15px;
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .file-display h6 {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
 
     /* New styles for the bottom action bar */
     .bottom-bar {
@@ -129,18 +148,15 @@ st.markdown("""
         justify-content: space-around;
         align-items: center;
     }
-
     .bottom-bar .stButton > button {
         height: 2.5rem;
         padding-left: 1rem;
         padding-right: 1rem;
     }
-
     /* Adjust main content to not be hidden behind bottom bar */
     .main .block-container {
         padding-bottom: 5rem;
     }
-
     /* Custom styles for the chat input */
     .stChatInputContainer {
         position: fixed;
@@ -151,16 +167,15 @@ st.markdown("""
         background-color: rgba(49, 51, 63, 0.9);
         z-index: 998;
     }
-
     .stChatInputContainer > div {
         margin-bottom: 0 !important;
     }
-
     /* Hide default Streamlit watermark */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
 
 # Function to load Lottie animation
 def load_lottieurl(url: str):
@@ -511,6 +526,10 @@ st.write("Data saved as 'scatter_data.csv'")
                     with open(f"generated_files/{file}", 'r') as f:
                         html_string = f.read()
                     st.components.v1.html(html_string, height=600)
+                elif file.endswith('.wav'):
+                    st.audio(f"generated_files/{file}")
+                elif file.endswith('.mp4'):
+                    st.video(f"generated_files/{file}")
                 else:
                     content = load_file(file)
                     st.text_area(f"Content of {file}", content, height=200)
@@ -607,3 +626,4 @@ st.write("Data saved as 'scatter_data.csv'")
 # Entry point
 if __name__ == "__main__":
     main()
+
