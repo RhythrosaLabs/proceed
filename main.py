@@ -170,6 +170,7 @@ def load_lottieurl(url: str):
     return r.json()
 
 # Updated function to execute user-provided code
+# Function to execute user-provided code
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
@@ -189,75 +190,104 @@ def execute_code(code, timeout=30):
             'save_file': save_file,
             'load_file': load_file,
             'list_files': list_files,
-            'pygame_surface_to_image': pygame_surface_to_image,
-            'save_plot': save_plot,
-            'save_plotly': save_plotly,
-            'save_image': save_image,
-            'save_audio': save_audio
+            'display_generated_file': display_generated_file,
         }
-        
+
         output = io.StringIO()
         error_output = io.StringIO()
-        
+
         try:
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error_output):
                 exec(code, globals(), local_vars)
-            
+
             return_dict['output'] = output.getvalue()
             return_dict['error'] = error_output.getvalue()
-            return_dict['local_vars'] = local_vars
-            return_dict['widget_states'] = capture_widget_states(local_vars)
         except Exception:
             return_dict['error'] = traceback.format_exc()
 
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
     process = multiprocessing.Process(target=worker, args=(code, return_dict))
-    
+
     process.start()
     start_time = time.time()
-    
+
     while process.is_alive():
         if time.time() - start_time > timeout:
             process.terminate()
             return False, "Execution timed out."
-        
+
         if psutil.virtual_memory().percent > 90:
             process.terminate()
             return False, "Memory usage exceeded limit."
-        
+
         time.sleep(0.1)
-    
+
     process.join()
-    
+
     if 'error' in return_dict and return_dict['error']:
         return False, f"Error:\n{return_dict['error']}"
-    
+
     if 'output' in return_dict and return_dict['output']:
         st.text("Print output:")
         st.code(return_dict['output'], language="")
-    
-    if 'local_vars' in return_dict:
-        local_vars = return_dict['local_vars']
-        
-        if 'plt' in local_vars and plt.get_fignums():
-            fig = plt.gcf()
-            st.pyplot(fig)
-            save_plot(fig, "matplotlib_plot.png")
-            plt.close()
-        
-        if 'fig' in local_vars and isinstance(local_vars['fig'], go.Figure):
-            st.plotly_chart(local_vars['fig'])
-            save_plotly(local_vars['fig'], "plotly_plot.html")
-        
-        if 'image' in local_vars and isinstance(local_vars['image'], Image.Image):
-            st.image(local_vars['image'], caption="Generated Image", use_column_width=True)
-            save_image(local_vars['image'], "generated_image.png")
-    
-    if 'widget_states' in return_dict:
-        restore_widget_states(return_dict['widget_states'])
+
+    # Automatically refresh the file display after code execution
+    display_generated_files()
     
     return True, "Code executed successfully."
+
+# File system management functions
+def save_file(filename, content):
+    with open(f"generated_files/{filename}", "w") as f:
+        f.write(content)
+
+def load_file(filename):
+    with open(f"generated_files/{filename}", "r") as f:
+        return f.read()
+
+def list_files():
+    return os.listdir("generated_files")
+
+# New function to display files generated during execution
+def display_generated_file(filepath):
+    if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+        st.image(filepath, use_column_width=True)
+    elif filepath.endswith(('.wav', '.mp3')):
+        audio_bytes = open(filepath, 'rb').read()
+        st.audio(audio_bytes)
+    elif filepath.endswith('.html'):
+        with open(filepath, 'r') as f:
+            html_string = f.read()
+        st.components.v1.html(html_string, height=600)
+
+# Function to save various media outputs
+def save_image(img, filename):
+    img.save(f"generated_files/{filename}")
+    display_generated_file(f"generated_files/{filename}")
+
+def save_audio(audio, sample_rate, filename):
+    sf.write(f"generated_files/{filename}", audio, sample_rate)
+    display_generated_file(f"generated_files/{filename}")
+
+# Function to display all generated files
+def display_generated_files():
+    files = list_files()
+    if files:
+        st.markdown("### Generated Files")
+        for file in files:
+            filepath = f"generated_files/{file}"
+            with st.expander(f"View {file}"):
+                display_generated_file(filepath)
+            with open(filepath, "rb") as f:
+                st.download_button(
+                    label=f"Download {file}",
+                    data=f,
+                    file_name=file,
+                    mime="application/octet-stream"
+                )
+    else:
+        st.info("No generated files yet.")
 
 def capture_widget_states(local_vars):
     widget_states = {}
@@ -304,17 +334,6 @@ def pygame_surface_to_image(surface):
     buffer = surface.get_view("RGB")
     return Image.frombytes("RGB", surface.get_size(), buffer.raw)
 
-# Functions for file system management
-def save_file(filename, content):
-    with open(f"generated_files/{filename}", "w") as f:
-        f.write(content)
-
-def load_file(filename):
-    with open(f"generated_files/{filename}", "r") as f:
-        return f.read()
-
-def list_files():
-    return os.listdir("generated_files")
 
 # New functions to save various outputs
 def save_plot(fig, filename):
@@ -323,11 +342,6 @@ def save_plot(fig, filename):
 def save_plotly(fig, filename):
     fig.write_html(f"generated_files/{filename}")
 
-def save_image(img, filename):
-    img.save(f"generated_files/{filename}")
-
-def save_audio(audio, sample_rate, filename):
-    sf.write(f"generated_files/{filename}", audio, sample_rate)
 
 # Function to call GPT-4 via requests (unchanged)
 def chat_with_gpt(prompt, api_key, conversation_history):
