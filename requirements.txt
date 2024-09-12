@@ -27,4 +27,5 @@ pyglet
 midiutil
 streamlit-player
 streamlit-webrtc
+textblob
 streamlit-d3graph
