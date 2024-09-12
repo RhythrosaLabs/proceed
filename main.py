@@ -41,6 +41,7 @@ st.markdown("""
         body {
             background-color: #0e1117;
             color: #c9d1d9;
+            padding-bottom: 80px;  /* Adjusted for bottom bar */
         }
         /* Remove Streamlit branding */
         #MainMenu {visibility: hidden;}
@@ -79,9 +80,10 @@ st.markdown("""
             background-color: #238636;
             color: white;
             border-radius: 5px;
-            padding: 0.5rem 1rem;
-            margin: 0.5rem 0.25rem 0.5rem 0;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
             transition: all 0.2s ease-in-out;
+            width: 100%;
         }
         .stButton>button:hover {
             background-color: #2ea043;
@@ -133,6 +135,31 @@ st.markdown("""
         }
         .ace_identifier {
             color: #d2a8ff;
+        }
+        /* Bottom bar styling */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #0e1117;
+            padding: 0.5rem 1rem;
+            z-index: 9999;
+            border-top: 1px solid #30363d;
+        }
+        .bottom-bar .stTextInput, .bottom-bar .stButton {
+            margin-bottom: 0;
+        }
+        .bottom-bar .stTextInput>div>div {
+            flex-grow: 1;
+        }
+        .bottom-bar .stButton>button {
+            width: 100%;
+            margin: 0;
+        }
+        /* Main content adjustments */
+        .main-content {
+            padding-bottom: 80px;  /* Same as the body padding-bottom */
         }
     </style>
 """, unsafe_allow_html=True)
@@ -215,7 +242,7 @@ def display_chat_message(role, content):
         st.markdown(f'<div class="chat-message assistant"><div class="message">{content}</div></div>', unsafe_allow_html=True)
 
 # Function to fix code
-def fix_code(code, error_message, api_key):
+def fix_code_function(code, error_message, api_key):
     prompt = f"The following Python code produced an error:\n\n```python\n{code}\n```\n\nError message: {error_message}\n\nPlease provide a corrected version of the code that fixes this error."
     fixed_code = chat_with_gpt(prompt, api_key, [])
     return fixed_code
@@ -235,7 +262,7 @@ def main():
     if 'uploaded_file' not in st.session_state:
         st.session_state.uploaded_file = None
     if 'selected_model' not in st.session_state:
-        st.session_state.selected_model = "gpt-4o"
+        st.session_state.selected_model = "gpt-4"
     if 'temperature' not in st.session_state:
         st.session_state.temperature = 0.7
 
@@ -247,13 +274,15 @@ def main():
     with st.sidebar:
         st.header("🔑 Settings")
         openai_api_key = st.text_input("Enter your OpenAI API Key", type="password", help="Your API key is needed to communicate with OpenAI's GPT-4 model.")
-        st.selectbox("Select Model", ["gpt-4o", "gpt-4o-mini"], key='selected_model')
+        st.selectbox("Select Model", ["gpt-4", "gpt-3.5-turbo"], key='selected_model')
         st.slider("Set Temperature", min_value=0.0, max_value=1.0, value=0.7, key='temperature', help="Controls the creativity of the AI's responses.")
         st.markdown("---")
         st.subheader("📁 File Management")
         uploaded_file = st.file_uploader("Upload a file", type=["py", "txt", "csv", "json", "jpg", "png", "wav"])
         if uploaded_file is not None:
             st.session_state.uploaded_file = uploaded_file
+            if not os.path.exists("generated_files"):
+                os.makedirs("generated_files")
             with open(os.path.join("generated_files", uploaded_file.name), "wb") as f:
                 f.write(uploaded_file.getbuffer())
             st.success(f"File '{uploaded_file.name}' uploaded successfully.")
@@ -271,6 +300,9 @@ def main():
         """)
         st.markdown("---")
         st.caption("Note: Your API key is stored securely in the app session and not shared.")
+
+    # Wrap main content in a container
+    st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
     # Display chat messages
     st.markdown("### 💬 Chat History")
@@ -296,67 +328,6 @@ def main():
         st.session_state.last_code = code_editor
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Chat input
-    st.markdown("### ✍️ Your Input")
-    prompt = st.text_input("Ask me anything about coding or request a visualization...")
-
-    # Action buttons
-    st.markdown("### 🔧 Actions")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        if st.button("🏃‍♂️ Run Code"):
-            if st.session_state.last_code.strip() != "":
-                with st.spinner("Executing code..."):
-                    execute_code(st.session_state.last_code)
-            else:
-                st.warning("No code to execute. Please write or request some code first.")
-    with col2:
-        if st.button("🔧 Fix Code"):
-            if st.session_state.last_error and st.session_state.last_code.strip() != "":
-                if openai_api_key:
-                    with st.spinner("Fixing code..."):
-                        fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, openai_api_key)
-                        st.session_state.last_code = fixed_code
-                        st.success("Code has been fixed. Please rerun.")
-                else:
-                    st.warning("Please enter your OpenAI API key in the sidebar.")
-            else:
-                st.warning("No error to fix or no previous code execution. Please run some code first.")
-    with col3:
-        if st.button("💾 Save Code"):
-            if st.session_state.last_code.strip() != "":
-                save_file_name = st.text_input("Enter filename to save code:", value="my_code.py")
-                save_file(save_file_name, st.session_state.last_code)
-                st.success(f"Code saved as '{save_file_name}' in 'generated_files' directory.")
-            else:
-                st.warning("No code to save.")
-    with col4:
-        if st.button("🧹 Clear Code"):
-            st.session_state.last_code = ""
-            st.session_state.last_error = None
-    with col5:
-        if st.button("🗑️ Clear Chat"):
-            st.session_state.messages = []
-            st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-
-    if prompt:
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        display_chat_message("user", prompt)
-
-        # Process with GPT-4
-        if openai_api_key:
-            with st.spinner("Thinking..."):
-                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                display_chat_message("assistant", response)
-
-                # Update last_code if the response contains a code block
-                if "```python" in response:
-                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
-        else:
-            st.warning("Please enter a valid OpenAI API key in the sidebar.")
-
     # Display generated files with file explorer
     st.markdown("### 📁 Generated Files")
     files = list_files()
@@ -378,6 +349,92 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No generated files yet.")
+
+    # Close the main content container
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Create a container for the bottom bar
+    with st.container():
+        st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
+
+        # Create columns for the input field and action buttons
+        col_input, col_buttons = st.columns([3, 2])
+
+        with col_input:
+            prompt = st.text_input("✍️ Your Input: Ask me anything about coding or request a visualization...", key="user_input")
+
+        with col_buttons:
+            # Arrange buttons horizontally
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                run_code = st.button("🏃‍♂️ Run Code")
+            with col2:
+                fix_code = st.button("🔧 Fix Code")
+            with col3:
+                save_code = st.button("💾 Save Code")
+            with col4:
+                clear_code = st.button("🧹 Clear Code")
+            with col5:
+                clear_chat = st.button("🗑️ Clear Chat")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Update button action handlers
+    if run_code:
+        if st.session_state.last_code.strip() != "":
+            with st.spinner("Executing code..."):
+                execute_code(st.session_state.last_code)
+        else:
+            st.warning("No code to execute. Please write or request some code first.")
+
+    if fix_code:
+        if st.session_state.last_error and st.session_state.last_code.strip() != "":
+            if openai_api_key:
+                with st.spinner("Fixing code..."):
+                    fixed_code = fix_code_function(st.session_state.last_code, st.session_state.last_error, openai_api_key)
+                    st.session_state.last_code = fixed_code
+                    st.success("Code has been fixed. Please rerun.")
+            else:
+                st.warning("Please enter your OpenAI API key in the sidebar.")
+        else:
+            st.warning("No error to fix or no previous code execution. Please run some code first.")
+
+    if save_code:
+        if st.session_state.last_code.strip() != "":
+            with st.spinner("Saving code..."):
+                save_file_name = st.text_input("Enter filename to save code:", value="my_code.py")
+                if save_file_name:
+                    save_file(save_file_name, st.session_state.last_code)
+                    st.success(f"Code saved as '{save_file_name}' in 'generated_files' directory.")
+        else:
+            st.warning("No code to save.")
+
+    if clear_code:
+        st.session_state.last_code = ""
+        st.session_state.last_error = None
+
+    if clear_chat:
+        st.session_state.messages = []
+        st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
+
+    # Process user prompt
+    if prompt:
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        display_chat_message("user", prompt)
+
+        # Process with GPT-4
+        if openai_api_key:
+            with st.spinner("Thinking..."):
+                response = chat_with_gpt(prompt, openai_api_key, st.session_state.messages[:-1])
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                display_chat_message("assistant", response)
+
+                # Update last_code if the response contains a code block
+                if "```python" in response:
+                    st.session_state.last_code = response.split("```python")[1].split("```")[0].strip()
+        else:
+            st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
 # Entry point
 if __name__ == "__main__":
