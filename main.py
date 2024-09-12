@@ -21,8 +21,10 @@ import time
 import psutil
 import traceback
 import json
-import re
 import uuid
+from pygments import highlight
+from pygments.lexers import PythonLexer
+from pygments.formatters import HtmlFormatter
 
 # Set page config for a wider layout
 st.set_page_config(layout="wide", page_title="Advanced Coding Assistant", page_icon="🚀")
@@ -149,6 +151,13 @@ def display_file(file_path):
             content = f.read()
         st.code(content, language='python')
 
+def syntax_highlight(code):
+    lexer = PythonLexer()
+    formatter = HtmlFormatter(style="monokai", linenos=True, cssclass="source")
+    highlighted = highlight(code, lexer, formatter)
+    css = formatter.get_style_defs('.source')
+    return highlighted, css
+
 def execute_code(code, timeout=30):
     def worker(code, return_dict):
         local_vars = {
@@ -183,6 +192,7 @@ def execute_code(code, timeout=30):
 
             return_dict['output'] = output.getvalue()
             return_dict['error'] = error_output.getvalue()
+            return_dict['variables'] = {k: v for k, v in local_vars.items() if not k.startswith('_') and k not in globals()}
         except Exception:
             return_dict['error'] = traceback.format_exc()
 
@@ -210,8 +220,26 @@ def execute_code(code, timeout=30):
         return False, f"Error:\n{return_dict['error']}"
 
     if 'output' in return_dict and return_dict['output']:
-        st.text("Print output:")
+        st.subheader("Print Output:")
         st.code(return_dict['output'], language="")
+
+    if 'variables' in return_dict:
+        st.subheader("Variable States:")
+        for var, value in return_dict['variables'].items():
+            if isinstance(value, (pd.DataFrame, pd.Series)):
+                st.write(f"{var}:")
+                st.dataframe(value)
+            elif isinstance(value, (plt.Figure, go.Figure)):
+                st.write(f"{var}:")
+                st.pyplot(value) if isinstance(value, plt.Figure) else st.plotly_chart(value)
+            elif isinstance(value, alt.Chart):
+                st.write(f"{var}:")
+                st.altair_chart(value)
+            elif isinstance(value, (np.ndarray, list, tuple, dict)):
+                st.write(f"{var}:")
+                st.json(value)
+            else:
+                st.write(f"{var}: {value}")
 
     return True, "Code executed successfully."
 
@@ -282,7 +310,7 @@ def add_to_history(code):
         st.session_state.code_history.pop(0)
 
 def main():
-    st.title("🚀 Advanced Coding Assistant v3")
+    st.title("🚀 Advanced Coding Assistant v4")
     
     if 'messages' not in st.session_state:
         st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your advanced coding assistant. How can I help you today?"}]
@@ -314,7 +342,7 @@ def main():
                 st.experimental_rerun()
 
     # Main area
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([1, 1])
 
     with col1:
         st.subheader("💬 Chat with AI")
@@ -342,9 +370,14 @@ def main():
                 st.warning("Please enter your OpenAI API key in the sidebar.")
 
     with col2:
-        st.subheader("🖥️ Code Executor")
+        st.subheader("🖥️ Code Visualizer")
         
+        # Code input with syntax highlighting
         st.session_state.code_editor = st.text_area("Python Code", value=st.session_state.code_editor, height=300, key="code_input")
+        highlighted_code, css = syntax_highlight(st.session_state.code_editor)
+        
+        st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
+        st.markdown(highlighted_code, unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         with col1:
