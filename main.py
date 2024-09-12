@@ -216,8 +216,8 @@ def main():
         keybinding="vscode", font_size=14, tab_size=4, show_gutter=True
     )
     
-    # Buttons for executing code, fixing, and clearing
-    if st.button("🏃‍♂️ Run Code"):
+    # Execute the code when button is clicked
+    if st.button("🏃‍♂️ Run Code", key="run_code_button"):
         execute_code(st.session_state.code_editor)
     
     # Display generated files if any
@@ -232,14 +232,11 @@ def main():
     
     # Bottom bar with action buttons
     st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2 = st.columns([1, 1])
     with col1:
         st.button("🔄 Reset All", on_click=lambda: st.session_state.clear())
     with col2:
         st.button("🧹 Clear Code", on_click=lambda: st.session_state.update({'code_editor': ""}))
-    with col3:
-        st.button("🏃‍♂️ Run Code", key="run_code_button", on_click=lambda: execute_code(st.session_state.code_editor))
-
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Run the app
