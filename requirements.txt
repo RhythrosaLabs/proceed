@@ -25,4 +25,3 @@ music21
 psutil
 pyglet
 midiutil
-turtle
