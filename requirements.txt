@@ -26,3 +26,5 @@ psutil
 pyglet
 yaml
 socket
+midiutil
+tk
