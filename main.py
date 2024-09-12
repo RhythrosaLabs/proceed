@@ -264,18 +264,6 @@ def load_file(filename):
 def list_files():
     return os.listdir("generated_files")
 
-# New function to display files generated during execution
-def display_generated_file(filepath):
-    if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-        st.image(filepath, use_column_width=True)
-    elif filepath.endswith(('.wav', '.mp3')):
-        audio_bytes = open(filepath, 'rb').read()
-        st.audio(audio_bytes)
-    elif filepath.endswith('.html'):
-        with open(filepath, 'r') as f:
-            html_string = f.read()
-        st.components.v1.html(html_string, height=600)
-
 # Function to save various media outputs
 def save_image(img, filename):
     img.save(f"generated_files/{filename}")
@@ -285,7 +273,26 @@ def save_audio(audio, sample_rate, filename):
     sf.write(f"generated_files/{filename}", audio, sample_rate)
     display_generated_file(f"generated_files/{filename}")
 
-# Function to display all generated files
+# Function to display an individual file based on type
+def display_generated_file(filepath):
+    if filepath.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+        st.image(filepath, use_column_width=True)
+    elif filepath.endswith(('.wav', '.mp3')):
+        audio_bytes = open(filepath, 'rb').read()
+        st.audio(audio_bytes)
+    elif filepath.endswith('.mp4'):
+        st.video(filepath)
+    elif filepath.endswith('.html'):
+        with open(filepath, 'r') as f:
+            html_string = f.read()
+        st.components.v1.html(html_string, height=600)
+    else:
+        # Display plain text or other non-media files
+        with open(filepath, 'r') as f:
+            content = f.read()
+        st.text(content)
+
+# Function to display all generated files with download options
 def display_generated_files():
     files = list_files()
     if files:
@@ -303,6 +310,7 @@ def display_generated_files():
                 )
     else:
         st.info("No generated files yet.")
+
 
 def capture_widget_states(local_vars):
     widget_states = {}
