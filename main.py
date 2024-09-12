@@ -317,8 +317,40 @@ def fix_code(code, error_message, api_key):
     return fixed_code
 
 # Main function
+# New function for session management
+def save_session():
+    session_data = {
+        "code": st.session_state.code_editor,
+        "chat": st.session_state.messages,
+        "history": st.session_state.code_history
+    }
+    with open("session.json", "w") as f:
+        json.dump(session_data, f)
+    st.success("Session saved successfully!")
+
+def load_session():
+    try:
+        with open("session.json", "r") as f:
+            session_data = json.load(f)
+        st.session_state.code_editor = session_data["code"]
+        st.session_state.messages = session_data["chat"]
+        st.session_state.code_history = session_data["history"]
+        st.success("Session loaded successfully!")
+    except FileNotFoundError:
+        st.error("No saved session found.")
+
+# New function for code history
+def add_to_history(code):
+    if 'code_history' not in st.session_state:
+        st.session_state.code_history = []
+    if code not in st.session_state.code_history:
+        st.session_state.code_history.append(code)
+    if len(st.session_state.code_history) > 10:  # Keep only the last 10 entries
+        st.session_state.code_history.pop(0)
+
+# Main function
 def main():
-    st.title("🚀 Advanced Coding Assistant")
+    st.title("🚀 Advanced Coding Assistant v2")
     
     clear_generated_files()
 
@@ -326,36 +358,34 @@ def main():
         st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm your coding assistant. Ask me anything or request code!"}]
     if 'last_error' not in st.session_state:
         st.session_state.last_error = None
-    if 'last_code' not in st.session_state:
-        st.session_state.last_code = None
     if 'code_editor' not in st.session_state:
         st.session_state.code_editor = ""
+    if 'code_history' not in st.session_state:
+        st.session_state.code_history = []
 
     with st.sidebar:
         st.header("Settings")
         api_key = st.text_input("Enter your OpenAI API Key", type="password", key="api_key_input")
-        st.markdown("### Quick Tips:")
-        st.markdown("1. Chat naturally about coding tasks")
-        st.markdown("2. Request code samples for various tasks")
-        st.markdown("3. Experiment with data visualization and processing")
-        st.markdown("4. Use buttons to manage code and conversation")
         
-        st.markdown("### Available Libraries:")
-        libraries = [
-            "Plotting: matplotlib, seaborn, plotly, altair",
-            "Data: pandas, numpy",
-            "Geospatial: pydeck",
-            "Audio: librosa",
-            "Image: PIL, cv2",
-            "Others: io, base64"
-        ]
-        for lib in libraries:
-            st.markdown(f"- {lib}")
+        st.subheader("Session Management")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Save Session"):
+                save_session()
+        with col2:
+            if st.button("Load Session"):
+                load_session()
+        
+        st.subheader("Code History")
+        for i, historical_code in enumerate(st.session_state.code_history):
+            if st.button(f"Load #{i+1}", key=f"history_{i}"):
+                st.session_state.code_editor = historical_code
+                st.experimental_rerun()
 
     for message in st.session_state.messages:
         display_chat_message(message["role"], message["content"])
 
-    st.markdown("### Code Execution Area")
+    st.markdown("### Enhanced Code Editor")
     code_editor = st_ace(
         value=st.session_state.code_editor,
         language="python",
@@ -367,12 +397,13 @@ def main():
         auto_update=True,
         font_size=14,
         tab_size=4,
-        placeholder="Write your Python code here...",
+        show_line_numbers=True,
         key="ace_editor"
     )
 
-    st.session_state.code_editor = code_editor
-    st.session_state.last_code = code_editor
+    if code_editor != st.session_state.code_editor:
+        st.session_state.code_editor = code_editor
+        add_to_history(code_editor)
 
     prompt = st.chat_input("Ask for code or any coding question...", key="chat_input")
     
@@ -386,16 +417,16 @@ def main():
                 if "```python" in response:
                     code_block = response.split("```python")[1].split("```")[0].strip()
                     st.session_state.code_editor = code_block
-                    st.session_state.last_code = code_block
+                    add_to_history(code_block)
         else:
             st.warning("Please enter your OpenAI API key.")
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("🏃‍♂️ Run Code"):
-            if st.session_state.last_code:
+            if st.session_state.code_editor:
                 with st.spinner("Executing code..."):
-                    success, message = execute_code(st.session_state.last_code)
+                    success, message = execute_code(st.session_state.code_editor)
                     if success:
                         st.success(message)
                     else:
@@ -406,11 +437,11 @@ def main():
 
     with col2:
         if st.button("🔧 Fix and Rerun"):
-            if st.session_state.last_error and st.session_state.last_code:
+            if st.session_state.last_error and st.session_state.code_editor:
                 with st.spinner("Fixing code..."):
-                    fixed_code = fix_code(st.session_state.last_code, st.session_state.last_error, api_key)
+                    fixed_code = fix_code(st.session_state.code_editor, st.session_state.last_error, api_key)
                     st.session_state.code_editor = fixed_code
-                    st.session_state.last_code = fixed_code
+                    add_to_history(fixed_code)
                     success, message = execute_code(fixed_code)
                     if success:
                         st.success("Code fixed and executed successfully.")
@@ -424,7 +455,6 @@ def main():
     with col3:
         if st.button("🧹 Clear Code"):
             st.session_state.code_editor = ""
-            st.session_state.last_code = None
             st.session_state.last_error = None
             st.experimental_rerun()
 
@@ -437,8 +467,8 @@ def main():
         if st.button("🔄 Reset All"):
             st.session_state.messages = [{"role": "assistant", "content": "Everything has been reset. How can I help you today?"}]
             st.session_state.last_error = None
-            st.session_state.last_code = None
             st.session_state.code_editor = ""
+            st.session_state.code_history = []
             clear_generated_files()
             st.experimental_rerun()
 
