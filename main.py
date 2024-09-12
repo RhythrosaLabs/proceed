@@ -168,35 +168,75 @@ def load_lottieurl(url: str):
     return r.json()
 
 # Updated function to execute user-provided code
-def execute_code(code):
-    local_vars = {
-        'st': st,
-        'px': px,
-        'pd': pd,
-        'np': np,
-        'plt': plt,
-        'sns': sns,
-        'alt': alt,
-        'pdk': pdk,
-        'librosa': librosa,
-        'cv2': cv2,
-        'Image': Image,
-        'io': io,
-        'base64': base64,
-        'save_file': save_file,
-        'load_file': load_file,
-        'list_files': list_files
-    }
-    
-    output = io.StringIO()
-    
-    try:
-        with contextlib.redirect_stdout(output):
-            exec(code, globals(), local_vars)
+def execute_code(code, timeout=30):
+    def worker(code, return_dict):
+        local_vars = {
+            'st': st,
+            'px': px,
+            'pd': pd,
+            'np': np,
+            'plt': plt,
+            'sns': sns,
+            'alt': alt,
+            'pdk': pdk,
+            'librosa': librosa,
+            'cv2': cv2,
+            'Image': Image,
+            'io': io,
+            'base64': base64,
+            'save_file': save_file,
+            'load_file': load_file,
+            'list_files': list_files,
+            'pygame_surface_to_image': pygame_surface_to_image,
+            'save_plot': save_plot,
+            'save_plotly': save_plotly,
+            'save_image': save_image,
+            'save_audio': save_audio
+        }
         
-        if output.getvalue():
-            st.text("Print output:")
-            st.code(output.getvalue(), language="")
+        output = io.StringIO()
+        error_output = io.StringIO()
+        
+        try:
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error_output):
+                exec(code, globals(), local_vars)
+            
+            return_dict['output'] = output.getvalue()
+            return_dict['error'] = error_output.getvalue()
+            return_dict['local_vars'] = local_vars
+            return_dict['widget_states'] = capture_widget_states(local_vars)
+        except Exception:
+            return_dict['error'] = traceback.format_exc()
+
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+    process = multiprocessing.Process(target=worker, args=(code, return_dict))
+    
+    process.start()
+    start_time = time.time()
+    
+    while process.is_alive():
+        if time.time() - start_time > timeout:
+            process.terminate()
+            return False, "Execution timed out."
+        
+        if psutil.virtual_memory().percent > 90:
+            process.terminate()
+            return False, "Memory usage exceeded limit."
+        
+        time.sleep(0.1)
+    
+    process.join()
+    
+    if 'error' in return_dict and return_dict['error']:
+        return False, f"Error:\n{return_dict['error']}"
+    
+    if 'output' in return_dict and return_dict['output']:
+        st.text("Print output:")
+        st.code(return_dict['output'], language="")
+    
+    if 'local_vars' in return_dict:
+        local_vars = return_dict['local_vars']
         
         if 'plt' in local_vars and plt.get_fignums():
             fig = plt.gcf()
@@ -211,12 +251,37 @@ def execute_code(code):
         if 'image' in local_vars and isinstance(local_vars['image'], Image.Image):
             st.image(local_vars['image'], caption="Generated Image", use_column_width=True)
             save_image(local_vars['image'], "generated_image.png")
-        
-        return True, "Code executed successfully."
-    except Exception as e:
-        error_msg = f"Error: {str(e)}"
-        st.error(error_msg)
-        return False, error_msg
+    
+    if 'widget_states' in return_dict:
+        restore_widget_states(return_dict['widget_states'])
+    
+    return True, "Code executed successfully."
+
+def capture_widget_states(local_vars):
+    widget_states = {}
+    for name, value in local_vars.items():
+        if name.startswith('st_'):
+            if hasattr(value, 'value'):
+                widget_states[name] = value.value
+    return widget_states
+
+def restore_widget_states(widget_states):
+    for name, value in widget_states.items():
+        if name in st.session_state:
+            st.session_state[name] = value
+
+def get_streamlit_widgets():
+    return [name for name, func in inspect.getmembers(st) 
+            if inspect.isfunction(func) and name.startswith('slider') or name.startswith('text_input') or name.startswith('checkbox')]
+
+def get_code_suggestions(current_line):
+    suggestions = []
+    
+    if 'st.' in current_line:
+        widget_funcs = get_streamlit_widgets()
+        suggestions.extend([func for func in widget_funcs if func.startswith(current_line.split('.')[-1])])
+    
+    return suggestions
 
 # Function to convert Pygame surface to PIL Image
 def pygame_surface_to_image(surface):
