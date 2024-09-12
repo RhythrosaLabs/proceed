@@ -26,11 +26,3 @@ psutil
 watchdog
 socket
 zipfile
-tarfile
-pyyaml
-imageio
-audioread
-scipy
-pyglet
-arcade
-sympy
