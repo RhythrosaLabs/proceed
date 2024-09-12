@@ -484,44 +484,6 @@ def main():
         if suggestions:
             st.write("Suggestions:", ", ".join(suggestions))
 
-        if not st.session_state.last_code:
-            st.info("No code to display. Write some code or try the example below!")
-            st.markdown("Here's an example to try:")
-            example_code = """
-# Example: Create a scatter plot with Plotly and save it
-import plotly.express as px
-import numpy as np
-
-# Generate some random data
-np.random.seed(42)
-data = pd.DataFrame({
-    'x': np.random.randn(100),
-    'y': np.random.randn(100),
-    'size': np.random.randint(1, 20, 100)
-})
-
-# Create a scatter plot
-fig = px.scatter(data, x='x', y='y', size='size', color='size',
-                 title='Interactive Scatter Plot')
-fig.update_layout(template='plotly_dark')
-
-# Display the plot
-st.plotly_chart(fig)
-
-# Save the plot
-save_plotly(fig, "interactive_scatter_plot.html")
-st.write("Plot saved as 'interactive_scatter_plot.html'")
-
-# Save the data
-data.to_csv('generated_files/scatter_data.csv', index=False)
-st.write("Data saved as 'scatter_data.csv'")
-"""
-            st.code(example_code, language="python")
-            if st.button("Try This Example", key="try_example"):
-                st.session_state.code_editor = example_code
-                st.session_state.last_code = example_code
-                st.rerun()  # Changed from st.experimental_rerun()
-
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Display generated files
@@ -577,7 +539,7 @@ st.write("Data saved as 'scatter_data.csv'")
                     else:
                         st.error(f"Error after fixing: {message}")
                         st.session_state.last_error = message
-                    st.rerun()  # Changed from st.experimental_rerun()
+                    st.rerun()
             else:
                 st.warning("No error to fix or no previous code execution. Please run some code first.")
 
@@ -586,13 +548,13 @@ st.write("Data saved as 'scatter_data.csv'")
             st.session_state.code_editor = ""
             st.session_state.last_code = None
             st.session_state.last_error = None
-            st.rerun()  # Changed from st.experimental_rerun()
+            st.rerun()
 
     with col4:
         if st.button("🧹 Clear Chat", key="clear_chat"):
             st.session_state.messages = []
             st.session_state.messages.append({"role": "assistant", "content": "Chat cleared. How can I assist you?"})
-            st.rerun()  # Changed from st.experimental_rerun()
+            st.rerun()
 
     with col5:
         if st.button("🔄 Reset All", key="reset_all"):
@@ -601,7 +563,7 @@ st.write("Data saved as 'scatter_data.csv'")
             st.session_state.last_code = None
             st.session_state.code_editor = ""
             st.session_state.messages.append({"role": "assistant", "content": "Everything has been reset. How can I help you today?"})
-            st.rerun()  # Changed from st.experimental_rerun()
+            st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -618,7 +580,7 @@ st.write("Data saved as 'scatter_data.csv'")
                     code_block = response.split("```python")[1].split("```")[0].strip()
                     st.session_state.code_editor = code_block
                     st.session_state.last_code = code_block
-                    st.rerun()  # Changed from st.experimental_rerun()
+                    st.rerun()
         else:
             st.warning("Please enter a valid OpenAI API key in the sidebar.")
 
