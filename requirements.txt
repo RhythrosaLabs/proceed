@@ -28,3 +28,11 @@ socket
 zipfile
 tarfile
 pyyaml
+open3d
+imageio
+pydub
+audioread
+scipy
+pyglet
+arcade
+sympy
