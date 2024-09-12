@@ -387,3 +387,4 @@ st.write("Data saved to 'scatter_data.csv'")
 # Entry point
 if __name__ == "__main__":
     main()
+
